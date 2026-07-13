@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../services/dnd_service.dart';
 import '../services/haptic_service.dart';
+import '../services/notification_service.dart';
 import '../services/share_service.dart';
 import '../services/volume_button_service.dart';
 import '../storage/namjap_repository.dart';
@@ -19,3 +21,8 @@ final volumeButtonServiceProvider = Provider<VolumeButtonService>((ref) {
   ref.onDispose(service.dispose);
   return service;
 });
+
+final dndServiceProvider = Provider<DndService>((ref) => DndService());
+
+final notificationServiceProvider =
+    Provider<NotificationService>((ref) => NotificationService());

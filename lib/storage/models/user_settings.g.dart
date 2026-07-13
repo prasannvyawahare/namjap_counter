@@ -25,13 +25,17 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       autoReset: fields[5] as bool,
       onboarded: fields[6] as bool,
       activeDate: fields[7] as String?,
+      dndWhileCounting: fields[8] as bool? ?? false,
+      reminderEnabled: fields[9] as bool? ?? false,
+      reminderHour: fields[10] as int? ?? 6,
+      reminderMinute: fields[11] as int? ?? 0,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserSettings obj) {
     writer
-      ..writeByte(8)
+      ..writeByte(12)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -47,7 +51,15 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       ..writeByte(6)
       ..write(obj.onboarded)
       ..writeByte(7)
-      ..write(obj.activeDate);
+      ..write(obj.activeDate)
+      ..writeByte(8)
+      ..write(obj.dndWhileCounting)
+      ..writeByte(9)
+      ..write(obj.reminderEnabled)
+      ..writeByte(10)
+      ..write(obj.reminderHour)
+      ..writeByte(11)
+      ..write(obj.reminderMinute);
   }
 
   @override

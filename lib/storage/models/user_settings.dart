@@ -17,6 +17,10 @@ class UserSettings extends HiveObject {
     this.autoReset = true,
     this.onboarded = false,
     this.activeDate,
+    this.dndWhileCounting = false,
+    this.reminderEnabled = false,
+    this.reminderHour = 6,
+    this.reminderMinute = 0,
   });
 
   @HiveField(0)
@@ -46,6 +50,22 @@ class UserSettings extends HiveObject {
   @HiveField(7)
   String? activeDate;
 
+  /// When true, the app turns on the system Do Not Disturb (Android only) while
+  /// it is in the foreground so calls and notifications don't break the chant.
+  @HiveField(8)
+  bool dndWhileCounting;
+
+  /// Whether the daily "start your namjap" reminder notification is scheduled.
+  @HiveField(9)
+  bool reminderEnabled;
+
+  /// Time of day (24h) for the daily reminder.
+  @HiveField(10)
+  int reminderHour;
+
+  @HiveField(11)
+  int reminderMinute;
+
   int get dailyGoalMala => dailyGoalCount ~/ AppConstants.countsPerMala;
 
   UserSettings copyWith({
@@ -57,6 +77,10 @@ class UserSettings extends HiveObject {
     bool? autoReset,
     bool? onboarded,
     String? activeDate,
+    bool? dndWhileCounting,
+    bool? reminderEnabled,
+    int? reminderHour,
+    int? reminderMinute,
   }) {
     return UserSettings(
       name: name ?? this.name,
@@ -67,6 +91,10 @@ class UserSettings extends HiveObject {
       autoReset: autoReset ?? this.autoReset,
       onboarded: onboarded ?? this.onboarded,
       activeDate: activeDate ?? this.activeDate,
+      dndWhileCounting: dndWhileCounting ?? this.dndWhileCounting,
+      reminderEnabled: reminderEnabled ?? this.reminderEnabled,
+      reminderHour: reminderHour ?? this.reminderHour,
+      reminderMinute: reminderMinute ?? this.reminderMinute,
     );
   }
 }

@@ -39,6 +39,15 @@ class SettingsController extends StateNotifier<UserSettings> {
 
   Future<void> setActiveDate(String date) =>
       _persist(state.copyWith(activeDate: date));
+
+  Future<void> setDndWhileCounting(bool value) =>
+      _persist(state.copyWith(dndWhileCounting: value));
+
+  Future<void> setReminderEnabled(bool value) =>
+      _persist(state.copyWith(reminderEnabled: value));
+
+  Future<void> setReminderTime(int hour, int minute) =>
+      _persist(state.copyWith(reminderHour: hour, reminderMinute: minute));
 }
 
 final settingsProvider =

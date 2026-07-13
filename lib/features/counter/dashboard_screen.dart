@@ -36,6 +36,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     _quoteIndex = DateTime.now().day % AppConstants.quotes.length;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startVolume();
+      _applyDnd(true);
       ref
           .read(counterProvider.notifier)
           .celebration
@@ -55,22 +56,38 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     );
   }
 
+  /// Mirror the user's "Do Not Disturb while counting" preference onto the
+  /// system: silence calls/notifications while the app is in the foreground,
+  /// restore them when it leaves. A no-op unless the preference is on and the
+  /// platform (Android) supports it with permission granted.
+  Future<void> _applyDnd(bool enable) async {
+    final wants = ref.read(settingsProvider).dndWhileCounting;
+    if (!wants) return;
+    await ref.read(dndServiceProvider).setEnabled(enable);
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ref.read(counterProvider.notifier).onResume();
       _startVolume();
+      _applyDnd(true);
     } else if (state == AppLifecycleState.paused) {
       ref.read(volumeButtonServiceProvider).stop();
+      _applyDnd(false);
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    ref.read(counterProvider.notifier).celebration
+    ref
+        .read(counterProvider.notifier)
+        .celebration
         .removeListener(_onCelebrationChanged);
     ref.read(volumeButtonServiceProvider).stop();
+    // Best-effort: hand DND back to the system as we tear down.
+    ref.read(dndServiceProvider).setEnabled(false);
     _confetti.dispose();
     super.dispose();
   }
@@ -98,48 +115,71 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         alignment: Alignment.topCenter,
         children: [
           SafeArea(
-            child: RefreshIndicator(
-              onRefresh: () async =>
-                  ref.read(counterProvider.notifier).onResume(),
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-                children: [
-                  _Header(name: settings.name),
-                  const SizedBox(height: 20),
-                  CounterHeroCard(
-                    count: counter.todayCount,
-                    malaText: counter.todayBreakdown.formatted,
-                    goalCount: goalCount,
-                    progress: progress,
-                  ),
-                  const SizedBox(height: 16),
-                  _TotalCard(
-                    totalCount: counter.totalCount,
-                    totalMala: counter.totalBreakdown.formatted,
-                  ),
-                  const SizedBox(height: 16),
-                  _GoalCard(
-                    todayCount: counter.todayCount,
-                    goalCount: goalCount,
-                  ),
-                  const SizedBox(height: 20),
-                  DashboardActionButtons(
-                    onIncrement: controller.increment,
-                    onDecrement: controller.decrement,
-                  ),
-                  const SizedBox(height: 24),
-                  _BottomActions(
-                    onHistory: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const HistoryScreen()),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final contentWidth = constraints.maxWidth - 10;
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: SizedBox(
+                    width: contentWidth,
+                    height: constraints.maxHeight,
+                    // BoxFit.fill with matching widths scales only the vertical
+                    // axis, so the content keeps its full width (just the 10px
+                    // side padding) while shrinking to fit the height.
+                    child: FittedBox(
+                      fit: BoxFit.fill,
+                      child: SizedBox(
+                        width: contentWidth,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _Header(name: settings.name),
+                              const SizedBox(height: 20),
+                              CounterHeroCard(
+                                count: counter.todayCount,
+                                malaText: counter.todayBreakdown.formatted,
+                                goalCount: goalCount,
+                                progress: progress,
+                              ),
+                              const SizedBox(height: 16),
+                              _TotalCard(
+                                totalCount: counter.totalCount,
+                                totalMala: counter.totalBreakdown.formatted,
+                              ),
+                              const SizedBox(height: 16),
+                              _GoalCard(
+                                todayCount: counter.todayCount,
+                                goalCount: goalCount,
+                              ),
+                              const SizedBox(height: 20),
+                              DashboardActionButtons(
+                                onIncrement: controller.increment,
+                                onDecrement: controller.decrement,
+                              ),
+                              const SizedBox(height: 24),
+                              _BottomActions(
+                                onHistory: () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const HistoryScreen(),
+                                  ),
+                                ),
+                                onShare: () => ShareSheet.show(context),
+                                onReset: _confirmReset,
+                              ),
+                              const SizedBox(height: 20),
+                              _QuoteCard(
+                                quote: AppConstants.quotes[_quoteIndex],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
-                    onShare: () => ShareSheet.show(context),
-                    onReset: _confirmReset,
                   ),
-                  const SizedBox(height: 20),
-                  _QuoteCard(quote: AppConstants.quotes[_quoteIndex]),
-                ],
-              ),
+                );
+              },
             ),
           ),
           Align(
@@ -222,14 +262,17 @@ class _Header extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${DateHelpers.greeting(now)},',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  )),
+              Text(
+                '${DateHelpers.greeting(now)},',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+              ),
               Text(
                 display,
-                style: theme.textTheme.headlineSmall
-                    ?.copyWith(fontWeight: FontWeight.bold),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 2),
               Text(
@@ -242,9 +285,9 @@ class _Header extends StatelessWidget {
           ),
         ),
         IconButton.filledTonal(
-          onPressed: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const SettingsScreen()),
-          ),
+          onPressed: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
           icon: const Icon(Icons.settings),
         ),
       ],
@@ -265,8 +308,7 @@ class _TotalCard extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 22,
-            backgroundColor:
-                theme.colorScheme.primary.withValues(alpha: 0.15),
+            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.15),
             child: Icon(Icons.insights, color: theme.colorScheme.primary),
           ),
           const SizedBox(width: 16),
@@ -274,19 +316,25 @@ class _TotalCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Total Count',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color:
-                          theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    )),
+                Text(
+                  'Total Count',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text('$totalCount',
-                    style: theme.textTheme.headlineSmall
-                        ?.copyWith(fontWeight: FontWeight.bold)),
-                Text('Total Mala · $totalMala',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.primary,
-                    )),
+                Text(
+                  '$totalCount',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  'Total Mala · $totalMala',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
               ],
             ),
           ),
@@ -326,15 +374,20 @@ class _GoalCard extends StatelessWidget {
             children: [
               Icon(Icons.flag, color: theme.colorScheme.primary, size: 20),
               const SizedBox(width: 8),
-              Text('Daily Goal',
-                  style: theme.textTheme.titleMedium
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+              Text(
+                'Daily Goal',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const Spacer(),
-              Text('${(progress.clamp(0, 1) * 100).round()}%',
-                  style: TextStyle(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  )),
+              Text(
+                '${(progress.clamp(0, 1) * 100).round()}%',
+                style: TextStyle(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -343,10 +396,14 @@ class _GoalCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('$doneMala / $goalMala Mala',
-                  style: theme.textTheme.bodySmall),
-              Text('$todayCount / $goalCount Counts',
-                  style: theme.textTheme.bodySmall),
+              Text(
+                '$doneMala / $goalMala Mala',
+                style: theme.textTheme.bodySmall,
+              ),
+              Text(
+                '$todayCount / $goalCount Counts',
+                style: theme.textTheme.bodySmall,
+              ),
             ],
           ),
         ],
@@ -421,8 +478,7 @@ class _ActionButton extends StatelessWidget {
       gradient: filled ? kSaffronGradient : null,
       child: Column(
         children: [
-          Icon(icon,
-              color: filled ? Colors.white : theme.colorScheme.primary),
+          Icon(icon, color: filled ? Colors.white : theme.colorScheme.primary),
           const SizedBox(height: 6),
           Text(
             label,
@@ -448,8 +504,10 @@ class _QuoteCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.format_quote,
-              color: theme.colorScheme.primary.withValues(alpha: 0.8)),
+          Icon(
+            Icons.format_quote,
+            color: theme.colorScheme.primary.withValues(alpha: 0.8),
+          ),
           const SizedBox(width: 12),
           Expanded(
             child: Text(

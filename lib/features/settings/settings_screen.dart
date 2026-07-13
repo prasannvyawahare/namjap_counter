@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../providers/service_providers.dart';
 import '../../providers/settings_controller.dart';
 import '../../widgets/app_card.dart';
 
@@ -43,6 +44,84 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       const SnackBar(content: Text('Settings saved')),
     );
     Navigator.of(context).maybePop();
+  }
+
+  Future<void> _onDndChanged(bool value) async {
+    final dnd = ref.read(dndServiceProvider);
+    final controller = ref.read(settingsProvider.notifier);
+
+    if (value && !await dnd.hasPermission()) {
+      if (!mounted) return;
+      final grant = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Allow Do Not Disturb access'),
+          content: const Text(
+            'To silence calls and notifications while you chant, Namjap needs '
+            '"Do Not Disturb access". Open system settings to grant it — then '
+            'come back and it will take effect the next time the app is open.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Not now'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Open settings'),
+            ),
+          ],
+        ),
+      );
+      if (grant == true) await dnd.openPolicySettings();
+    }
+
+    // Persist intent regardless — once access is granted it applies while the
+    // app is in the foreground.
+    await controller.setDndWhileCounting(value);
+    await dnd.setEnabled(value);
+  }
+
+  Future<void> _onReminderChanged(bool value) async {
+    final notif = ref.read(notificationServiceProvider);
+    final controller = ref.read(settingsProvider.notifier);
+
+    if (value) {
+      final granted = await notif.requestPermission();
+      await controller.setReminderEnabled(true);
+      final s = ref.read(settingsProvider);
+      await notif.scheduleDaily(s.reminderHour, s.reminderMinute);
+      if (!granted && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Enable notifications for Namjap in system settings to receive '
+              'reminders.',
+            ),
+          ),
+        );
+      }
+    } else {
+      await controller.setReminderEnabled(false);
+      await notif.cancelReminder();
+    }
+  }
+
+  Future<void> _pickReminderTime() async {
+    final s = ref.read(settingsProvider);
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: s.reminderHour, minute: s.reminderMinute),
+    );
+    if (picked == null) return;
+    await ref
+        .read(settingsProvider.notifier)
+        .setReminderTime(picked.hour, picked.minute);
+    if (s.reminderEnabled) {
+      await ref
+          .read(notificationServiceProvider)
+          .scheduleDaily(picked.hour, picked.minute);
+    }
   }
 
   @override
@@ -141,6 +220,65 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             value: settings.autoReset,
             onChanged: ref.read(settingsProvider.notifier).setAutoReset,
           ),
+          const SizedBox(height: 28),
+          _sectionTitle(theme, 'Do Not Disturb'),
+          const SizedBox(height: 12),
+          _ToggleCard(
+            icon: Icons.do_not_disturb_on,
+            iconColor: Colors.redAccent,
+            title: 'Silence while chanting',
+            subtitle: ref.read(dndServiceProvider).isSupported
+                ? 'Mute calls & notifications while the app is open'
+                : 'Not available on this device',
+            value: settings.dndWhileCounting,
+            onChanged: ref.read(dndServiceProvider).isSupported
+                ? _onDndChanged
+                : null,
+          ),
+          const SizedBox(height: 28),
+          _sectionTitle(theme, 'Reminders'),
+          const SizedBox(height: 12),
+          _ToggleCard(
+            icon: Icons.notifications_active,
+            iconColor: Colors.amber.shade700,
+            title: 'Daily Reminder',
+            subtitle: 'Remind me to start my namjap',
+            value: settings.reminderEnabled,
+            onChanged: _onReminderChanged,
+          ),
+          if (settings.reminderEnabled) ...[
+            const SizedBox(height: 12),
+            AppCard(
+              onTap: _pickReminderTime,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Icon(Icons.schedule, color: theme.colorScheme.primary),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Text(
+                      'Reminder time',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  Text(
+                    TimeOfDay(
+                      hour: settings.reminderHour,
+                      minute: settings.reminderMinute,
+                    ).format(context),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.chevron_right,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(16),
@@ -193,7 +331,7 @@ class _ToggleCard extends StatelessWidget {
   final String title;
   final String subtitle;
   final bool value;
-  final ValueChanged<bool> onChanged;
+  final ValueChanged<bool>? onChanged;
 
   @override
   Widget build(BuildContext context) {

@@ -6,10 +6,11 @@ import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 
 /// Listens to the hardware volume buttons and reports them as +1 / -1 events.
 ///
-/// On Android the volume keys are intercepted natively in `MainActivity`
-/// (see the `namjap/volume_buttons` [EventChannel]). The native side consumes
-/// the key events, so the media volume never changes and the system slider
-/// never appears — every press becomes a clean count.
+/// On Android the volume keys are intercepted natively in `MainActivity`, and
+/// on iOS in `VolumeButtonHandler` (both over the `namjap/volume_buttons`
+/// [EventChannel]). The native side consumes the presses and keeps the media
+/// volume parked, so the system slider never appears — every press becomes a
+/// clean count.
 ///
 /// On other platforms we fall back to observing the media volume: park it at a
 /// mid "anchor" value with the system UI hidden, translate any nudge into a
@@ -31,7 +32,9 @@ class VolumeButtonService {
 
   bool get isActive => _active;
 
-  bool get _useNative => defaultTargetPlatform == TargetPlatform.android;
+  bool get _useNative =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
 
   Future<void> start({
     required VoidCallback onUp,

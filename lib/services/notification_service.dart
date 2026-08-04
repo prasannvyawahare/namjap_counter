@@ -155,7 +155,7 @@ class NotificationService {
     }
 
     final complete = snapshot.goalComplete;
-    final title = complete ? '🎉 Daily Goal Completed' : '🕉️ Namjap Counter';
+    final title = complete ? '🎉 Daily Goal Completed' : 'Namjap Counter';
     final body = _body(snapshot);
 
     final android = AndroidNotificationDetails(
@@ -176,7 +176,11 @@ class NotificationService {
       showWhen: false,
       category: AndroidNotificationCategory.progress,
       visibility: NotificationVisibility.public,
+      // The status bar icon has to stay a flat white silhouette — Android
+      // tints it — so the app's own icon goes in the large slot beside the
+      // text, which is the only place a full-colour mark belongs.
       icon: 'ic_stat_namjap',
+      largeIcon: const DrawableResourceAndroidBitmap('@mipmap/ic_launcher'),
       color: const Color(0xFFFF9800),
       colorized: false,
       // Android drops the notification by itself the moment the day ends. It
@@ -217,15 +221,23 @@ class NotificationService {
     await _plugin.cancel(progressId);
   }
 
-  /// The quick actions. `cancelNotification: false` is essential — the plugin's
-  /// broadcast receiver dismisses the notification on a tap otherwise, so the
-  /// ongoing notification would vanish the first time someone pressed +1.
+  /// The quick actions, laid out left to right in this order.
+  ///
+  /// +1 is last so it lands on the right, under the thumb and matching the
+  /// home screen widget — it is the one pressed over and over, while Open is
+  /// the rare escape hatch.
+  ///
+  /// `cancelNotification: false` is essential — the plugin's broadcast receiver
+  /// dismisses the notification on a tap otherwise, so the ongoing notification
+  /// would vanish the first time someone pressed +1.
   static const List<AndroidNotificationAction> _actions = [
     AndroidNotificationAction(
-      NamjapAction.incrementNotificationId,
-      '➕ +1 Chant',
+      NamjapAction.openNotificationId,
+      '🏠 Open App',
       cancelNotification: false,
-      showsUserInterface: false,
+      // The one action that does launch the UI, so it goes to the activity
+      // rather than the background isolate.
+      showsUserInterface: true,
     ),
     AndroidNotificationAction(
       NamjapAction.decrementNotificationId,
@@ -234,12 +246,10 @@ class NotificationService {
       showsUserInterface: false,
     ),
     AndroidNotificationAction(
-      NamjapAction.openNotificationId,
-      '🏠 Open App',
+      NamjapAction.incrementNotificationId,
+      '➕ +1 Chant',
       cancelNotification: false,
-      // The one action that does launch the UI, so it goes to the activity
-      // rather than the background isolate.
-      showsUserInterface: true,
+      showsUserInterface: false,
     ),
   ];
 

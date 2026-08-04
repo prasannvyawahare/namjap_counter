@@ -65,9 +65,9 @@ class NamjapWidgetProvider : HomeWidgetProvider() {
                     R.id.widget_open,
                     HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java),
                 )
-                // Tapping anywhere else opens the app too.
+                // Tapping the icon and name opens the app too.
                 setOnClickPendingIntent(
-                    R.id.widget_title,
+                    R.id.widget_header,
                     HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java),
                 )
             }

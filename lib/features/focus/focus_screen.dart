@@ -85,22 +85,25 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     // Take over the volume keys while we're on top. The dashboard is still
     // mounted underneath and its handlers would otherwise keep counting
     // straight through a completed session target.
-    ref.read(volumeButtonServiceProvider).start(onUp: _count, onDown: _undo);
+    ref
+        .read(volumeButtonServiceProvider)
+        .start(owner: this, onUp: _count, onDown: _undo);
   }
 
-  /// Hand both back. DND returns to whatever the standing preference is rather
-  /// than simply off, so a user who chants with DND on all the time doesn't get
-  /// their notifications back the moment they leave Focus mode.
+  /// Hand everything back. DND returns to whatever the standing preference is
+  /// rather than simply off, so a user who chants with DND on all the time
+  /// doesn't get their notifications back the moment they leave Focus mode.
+  ///
+  /// The volume keys are only released, never re-pointed at the dashboard:
+  /// re-arming another screen from this one's teardown is what left the keys
+  /// dead when the two ran in an unexpected order. The dashboard claims them
+  /// back itself once it is on top again.
   void _disengage() {
     ref.read(wakelockServiceProvider).release(this);
     ref
         .read(dndServiceProvider)
         .setEnabled(ref.read(settingsProvider).dndWhileCounting);
-    // Give the volume keys back to the plain dashboard behaviour.
-    final counter = ref.read(counterProvider.notifier);
-    ref
-        .read(volumeButtonServiceProvider)
-        .start(onUp: counter.increment, onDown: counter.decrement);
+    ref.read(volumeButtonServiceProvider).stop(owner: this);
   }
 
   @override
@@ -130,13 +133,17 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
     return done < 0 ? 0 : done;
   }
 
+  // Both guard on `mounted`: these are handed to the volume-key service, and a
+  // stale reference reaching `ref` after teardown throws inside a stream
+  // callback — invisible from the outside, and indistinguishable from the keys
+  // simply not working.
   void _count() {
-    if (_targetMet) return;
+    if (_targetMet || !mounted) return;
     ref.read(counterProvider.notifier).increment();
   }
 
   void _undo() {
-    if (_targetMet) return;
+    if (_targetMet || !mounted) return;
     ref.read(counterProvider.notifier).decrement();
   }
 

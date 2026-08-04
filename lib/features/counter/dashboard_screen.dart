@@ -54,11 +54,27 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
   }
 
   Future<void> _startVolume() async {
+    if (!mounted) return;
     final service = ref.read(volumeButtonServiceProvider);
     await service.start(
+      owner: this,
       onUp: () => ref.read(counterProvider.notifier).increment(),
       onDown: () => ref.read(counterProvider.notifier).decrement(),
     );
+  }
+
+  /// Pushes a screen and takes the volume keys back once it closes.
+  ///
+  /// Focus mode borrows the keys for the length of a session, and the pop
+  /// ordering between its teardown and this future is not something either
+  /// screen controls. Re-claiming here means the dashboard is never left
+  /// waiting on a departing screen to hand them back — which is exactly how
+  /// they ended up dead after a Focus session.
+  Future<void> _pushAndReclaim(Future<void> Function() open) async {
+    await open();
+    if (!mounted) return;
+    await _startVolume();
+    _noteActivity();
   }
 
   /// Mirror the user's "Do Not Disturb while counting" preference onto the
@@ -104,7 +120,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
       _applyDnd(true);
       _noteActivity();
     } else if (state == AppLifecycleState.paused) {
-      ref.read(volumeButtonServiceProvider).stop();
+      ref.read(volumeButtonServiceProvider).stop(owner: this);
       _applyDnd(false);
       // Never hold the screen awake once we're out of the foreground.
       _releaseWakelock();
@@ -118,7 +134,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         .read(counterProvider.notifier)
         .celebration
         .removeListener(_onCelebrationChanged);
-    ref.read(volumeButtonServiceProvider).stop();
+    ref.read(volumeButtonServiceProvider).stop(owner: this);
     // Best-effort: hand DND and the screen timeout back to the system as we
     // tear down.
     ref.read(dndServiceProvider).setEnabled(false);
@@ -186,7 +202,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                             child: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                _Header(name: settings.name),
+                                _Header(
+                                  name: settings.name,
+                                  onSettings: () => _pushAndReclaim(
+                                    () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const SettingsScreen(),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                                 const SizedBox(height: 20),
                                 CounterHeroCard(
                                   count: counter.todayCount,
@@ -211,13 +236,19 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
                                 ),
                                 const SizedBox(height: 24),
                                 _BottomActions(
-                                  onFocus: () => FocusScreen.open(context),
-                                  onHistory: () => Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => const HistoryScreen(),
+                                  onFocus: () => _pushAndReclaim(
+                                    () => FocusScreen.open(context),
+                                  ),
+                                  onHistory: () => _pushAndReclaim(
+                                    () => Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => const HistoryScreen(),
+                                      ),
                                     ),
                                   ),
-                                  onShare: () => ShareSheet.show(context),
+                                  onShare: () => _pushAndReclaim(
+                                    () => ShareSheet.show(context),
+                                  ),
                                   onReset: _confirmReset,
                                 ),
                                 const SizedBox(height: 20),
@@ -301,8 +332,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.name});
+  const _Header({required this.name, required this.onSettings});
   final String name;
+  final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -338,9 +370,7 @@ class _Header extends StatelessWidget {
           ),
         ),
         IconButton.filledTonal(
-          onPressed: () => Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const SettingsScreen())),
+          onPressed: onSettings,
           icon: const Icon(Icons.settings),
         ),
       ],

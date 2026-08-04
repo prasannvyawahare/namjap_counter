@@ -128,6 +128,16 @@ class NotificationService {
   // Ongoing progress notification
   // ---------------------------------------------------------------------------
 
+  /// Whether this platform has a notification shade we post progress to.
+  ///
+  /// Guarded because the progress notification is driven from
+  /// [CounterController] on *every* count. Without this, a plain widget test —
+  /// or a desktop host — would drag the timezone database and the notification
+  /// plugin into a code path that has nothing to do with counting.
+  static bool get isSupported =>
+      defaultTargetPlatform == TargetPlatform.android ||
+      defaultTargetPlatform == TargetPlatform.iOS;
+
   /// Posts (or updates in place) the progress notification for [snapshot].
   ///
   /// Re-using [progressId] means every call replaces the previous one, so a
@@ -136,6 +146,7 @@ class NotificationService {
     ProgressSnapshot snapshot, {
     required bool dismissWhenComplete,
   }) async {
+    if (!isSupported) return;
     await init();
 
     if (snapshot.goalComplete && dismissWhenComplete) {
@@ -201,6 +212,7 @@ class NotificationService {
   }
 
   Future<void> cancelProgress() async {
+    if (!isSupported) return;
     await init();
     await _plugin.cancel(progressId);
   }

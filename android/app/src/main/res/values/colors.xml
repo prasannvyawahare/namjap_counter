@@ -2,4 +2,8 @@
 <resources>
     <!-- Matches AppTheme.lightBackground -->
     <color name="launch_background">#FDF7F0</color>
+
+    <!-- Home screen widget: the same saffron / deep orange pair as kSaffronGradient. -->
+    <color name="widget_gradient_start">#FF9800</color>
+    <color name="widget_gradient_end">#FF5722</color>
 </resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_title">🕉️ Namjap Counter</string>
+    <string name="widget_description">Today\'s chants, your streak, and a one-tap +1.</string>
+    <string name="widget_increment">+1</string>
+    <string name="widget_open">Open</string>
+    <string name="widget_increment_description">Add one chant</string>
+    <string name="widget_open_description">Open Namjap Counter</string>
+</resources>

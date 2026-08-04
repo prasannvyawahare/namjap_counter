@@ -54,6 +54,47 @@
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
         </receiver>
+
+        <!-- flutter_local_notifications: the +1 / -1 notification buttons don't
+             open the UI, so the OS delivers them here and a background Dart
+             isolate applies the count. -->
+        <receiver
+            android:exported="false"
+            android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />
+
+        <!-- home_widget: the widget's +1 button, likewise handled in Dart. -->
+        <receiver
+            android:exported="true"
+            android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver">
+            <intent-filter>
+                <action android:name="es.antonborri.home_widget.action.BACKGROUND" />
+            </intent-filter>
+        </receiver>
+
+        <!-- The home screen widget itself. -->
+        <receiver
+            android:exported="true"
+            android:name=".NamjapWidgetProvider">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/namjap_widget_info" />
+        </receiver>
+
+        <!-- Move the widget and the progress notification onto the new day. -->
+        <receiver
+            android:exported="true"
+            android:name=".DayRolloverReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.DATE_CHANGED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

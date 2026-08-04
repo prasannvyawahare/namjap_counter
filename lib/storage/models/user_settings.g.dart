@@ -30,13 +30,17 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       reminderHour: fields[10] as int,
       reminderMinute: fields[11] as int,
       keepScreenAwake: fields[12] == null ? true : fields[12] as bool,
+      progressNotificationEnabled:
+          fields[13] == null ? true : fields[13] as bool,
+      dismissNotificationOnGoalComplete:
+          fields[14] == null ? false : fields[14] as bool,
     );
   }
 
   @override
   void write(BinaryWriter writer, UserSettings obj) {
     writer
-      ..writeByte(13)
+      ..writeByte(15)
       ..writeByte(0)
       ..write(obj.name)
       ..writeByte(1)
@@ -62,7 +66,11 @@ class UserSettingsAdapter extends TypeAdapter<UserSettings> {
       ..writeByte(11)
       ..write(obj.reminderMinute)
       ..writeByte(12)
-      ..write(obj.keepScreenAwake);
+      ..write(obj.keepScreenAwake)
+      ..writeByte(13)
+      ..write(obj.progressNotificationEnabled)
+      ..writeByte(14)
+      ..write(obj.dismissNotificationOnGoalComplete);
   }
 
   @override

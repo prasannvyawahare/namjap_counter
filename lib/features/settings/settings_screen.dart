@@ -84,6 +84,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     await dnd.setEnabled(value);
   }
 
+  Future<void> _onProgressNotificationChanged(bool value) async {
+    final controller = ref.read(settingsProvider.notifier);
+    if (!value) {
+      // main() listens for this and clears the notification.
+      await controller.setProgressNotificationEnabled(false);
+      return;
+    }
+
+    final granted = await ref
+        .read(notificationServiceProvider)
+        .requestPermission();
+    await controller.setProgressNotificationEnabled(true);
+    if (!granted && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Enable notifications for Namjap in system settings to see your '
+            'progress in the shade.',
+          ),
+        ),
+      );
+    }
+  }
+
   Future<void> _onReminderChanged(bool value) async {
     final notif = ref.read(notificationServiceProvider);
     final controller = ref.read(settingsProvider.notifier);
@@ -252,6 +276,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ? _onDndChanged
                 : null,
           ),
+          const SizedBox(height: 28),
+          _sectionTitle(theme, 'Progress Notification'),
+          const SizedBox(height: 12),
+          _ToggleCard(
+            icon: Icons.push_pin,
+            iconColor: theme.colorScheme.primary,
+            title: 'Show in notification shade',
+            subtitle: "Live count with +1 and -1 buttons, all day",
+            value: settings.progressNotificationEnabled,
+            onChanged: _onProgressNotificationChanged,
+          ),
+          if (settings.progressNotificationEnabled) ...[
+            const SizedBox(height: 12),
+            _ToggleCard(
+              icon: Icons.celebration,
+              iconColor: Colors.pinkAccent,
+              title: 'Clear on goal completion',
+              subtitle: settings.dismissNotificationOnGoalComplete
+                  ? 'Removed the moment you finish'
+                  : 'Stays with a Hari Om 🙏 message',
+              value: settings.dismissNotificationOnGoalComplete,
+              onChanged: ref
+                  .read(settingsProvider.notifier)
+                  .setDismissNotificationOnGoalComplete,
+            ),
+          ],
           const SizedBox(height: 28),
           _sectionTitle(theme, 'Reminders'),
           const SizedBox(height: 12),

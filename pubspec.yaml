@@ -40,6 +40,7 @@ dependencies:
 
   # Nice-to-have
   confetti: ^0.8.0
+  home_widget: ^0.9.3
 
 dev_dependencies:
   flutter_test:

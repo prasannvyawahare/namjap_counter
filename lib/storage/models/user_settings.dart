@@ -22,6 +22,8 @@ class UserSettings extends HiveObject {
     this.reminderHour = 6,
     this.reminderMinute = 0,
     this.keepScreenAwake = true,
+    this.progressNotificationEnabled = true,
+    this.dismissNotificationOnGoalComplete = false,
   });
 
   @HiveField(0)
@@ -78,6 +80,16 @@ class UserSettings extends HiveObject {
   @HiveField(12, defaultValue: true)
   bool keepScreenAwake;
 
+  /// Whether the ongoing "today's progress" notification is posted. It carries
+  /// the +1 / -1 quick actions, so turning it off also removes those.
+  @HiveField(13, defaultValue: true)
+  bool progressNotificationEnabled;
+
+  /// What the progress notification does once the daily goal is reached: keep
+  /// it up with a congratulatory message (false) or clear it away (true).
+  @HiveField(14, defaultValue: false)
+  bool dismissNotificationOnGoalComplete;
+
   int get dailyGoalMala => dailyGoalCount ~/ AppConstants.countsPerMala;
 
   UserSettings copyWith({
@@ -94,6 +106,8 @@ class UserSettings extends HiveObject {
     int? reminderHour,
     int? reminderMinute,
     bool? keepScreenAwake,
+    bool? progressNotificationEnabled,
+    bool? dismissNotificationOnGoalComplete,
   }) {
     return UserSettings(
       name: name ?? this.name,
@@ -109,6 +123,11 @@ class UserSettings extends HiveObject {
       reminderHour: reminderHour ?? this.reminderHour,
       reminderMinute: reminderMinute ?? this.reminderMinute,
       keepScreenAwake: keepScreenAwake ?? this.keepScreenAwake,
+      progressNotificationEnabled:
+          progressNotificationEnabled ?? this.progressNotificationEnabled,
+      dismissNotificationOnGoalComplete:
+          dismissNotificationOnGoalComplete ??
+          this.dismissNotificationOnGoalComplete,
     );
   }
 }

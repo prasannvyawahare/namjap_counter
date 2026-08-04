@@ -49,6 +49,12 @@ class SettingsController extends StateNotifier<UserSettings> {
   Future<void> setReminderEnabled(bool value) =>
       _persist(state.copyWith(reminderEnabled: value));
 
+  Future<void> setProgressNotificationEnabled(bool value) =>
+      _persist(state.copyWith(progressNotificationEnabled: value));
+
+  Future<void> setDismissNotificationOnGoalComplete(bool value) =>
+      _persist(state.copyWith(dismissNotificationOnGoalComplete: value));
+
   Future<void> setReminderTime(int hour, int minute) =>
       _persist(state.copyWith(reminderHour: hour, reminderMinute: minute));
 }

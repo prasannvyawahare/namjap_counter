@@ -11,6 +11,9 @@ import '../../core/utils/mala_calculator.dart';
 import '../../providers/counter_controller.dart';
 import '../../providers/service_providers.dart';
 import '../../providers/settings_controller.dart';
+import '../../services/dnd_service.dart';
+import '../../services/volume_button_service.dart';
+import '../../services/wakelock_service.dart';
 import 'widgets/focus_target_sheet.dart';
 
 /// Distraction-free counting: one enormous number on a dim field, the whole
@@ -54,6 +57,15 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   late int _startCount;
   late int _targetMala;
 
+  // Captured up front rather than read from `ref` during teardown. These are
+  // plain Providers holding one instance for the app's life, so caching them
+  // is free — and it means _disengage() cannot fail partway through and walk
+  // away leaving the phone silenced or the volume keys pointed at a dead
+  // screen, which is exactly what used to happen.
+  late final WakelockService _wakelock;
+  late final DndService _dnd;
+  late final VolumeButtonService _volume;
+
   bool _targetMet = false;
   bool _showHint = true;
   Timer? _hintTimer;
@@ -62,6 +74,9 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _wakelock = ref.read(wakelockServiceProvider);
+    _dnd = ref.read(dndServiceProvider);
+    _volume = ref.read(volumeButtonServiceProvider);
     _targetMala = widget.targetMala;
     _startCount = ref.read(counterProvider).todayCount;
     _pulse = AnimationController(
@@ -80,30 +95,26 @@ class _FocusScreenState extends ConsumerState<FocusScreen>
   /// dashboard, Focus mode does not consult the preferences — entering it *is*
   /// the request to stay lit and undisturbed.
   void _engage() {
-    ref.read(wakelockServiceProvider).acquire(this);
-    ref.read(dndServiceProvider).setEnabled(true);
+    _wakelock.acquire(this);
+    _dnd.acquire(this);
     // Take over the volume keys while we're on top. The dashboard is still
     // mounted underneath and its handlers would otherwise keep counting
     // straight through a completed session target.
-    ref
-        .read(volumeButtonServiceProvider)
-        .start(owner: this, onUp: _count, onDown: _undo);
+    _volume.start(owner: this, onUp: _count, onDown: _undo);
   }
 
-  /// Hand everything back. DND returns to whatever the standing preference is
-  /// rather than simply off, so a user who chants with DND on all the time
-  /// doesn't get their notifications back the moment they leave Focus mode.
+  /// Let go of everything this screen was holding — nothing more.
   ///
-  /// The volume keys are only released, never re-pointed at the dashboard:
-  /// re-arming another screen from this one's teardown is what left the keys
-  /// dead when the two ran in an unexpected order. The dashboard claims them
-  /// back itself once it is on top again.
+  /// It deliberately does not decide what the dashboard should get back. Each
+  /// of these is held rather than switched, so releasing our claim is enough:
+  /// the screen stays lit and the phone stays silent only for as long as
+  /// somebody else still wants them. Restoring another screen's state from
+  /// this one's teardown is what previously left the volume keys dead and the
+  /// phone silenced with the Settings toggle insisting otherwise.
   void _disengage() {
-    ref.read(wakelockServiceProvider).release(this);
-    ref
-        .read(dndServiceProvider)
-        .setEnabled(ref.read(settingsProvider).dndWhileCounting);
-    ref.read(volumeButtonServiceProvider).stop(owner: this);
+    _wakelock.release(this);
+    _dnd.release(this);
+    _volume.stop(owner: this);
   }
 
   @override

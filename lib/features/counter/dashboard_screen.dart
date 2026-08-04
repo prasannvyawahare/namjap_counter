@@ -74,17 +74,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     await open();
     if (!mounted) return;
     await _startVolume();
+    // Focus mode silences the phone for the length of a session whatever the
+    // preference says. Re-asserting here means the dashboard's own policy is
+    // what stands the moment it is back, rather than whatever the screen on
+    // its way out happened to leave behind.
+    await _applyDnd(true);
     _noteActivity();
   }
 
   /// Mirror the user's "Do Not Disturb while counting" preference onto the
   /// system: silence calls/notifications while the app is in the foreground,
-  /// restore them when it leaves. A no-op unless the preference is on and the
-  /// platform (Android) supports it with permission granted.
-  Future<void> _applyDnd(bool enable) async {
-    final wants = ref.read(settingsProvider).dndWhileCounting;
-    if (!wants) return;
-    await ref.read(dndServiceProvider).setEnabled(enable);
+  /// restore them when it leaves.
+  ///
+  /// [inForeground] is whether the dashboard is currently the thing on screen;
+  /// the preference decides whether it asks for silence at all. When either is
+  /// false the hold is dropped rather than skipped — silence is reference
+  /// counted, so letting go is how the phone gets handed back, and doing
+  /// nothing is how it used to stay silenced after a Focus session.
+  Future<void> _applyDnd(bool inForeground) async {
+    final dnd = ref.read(dndServiceProvider);
+    if (inForeground && ref.read(settingsProvider).dndWhileCounting) {
+      await dnd.acquire(this);
+    } else {
+      await dnd.release(this);
+    }
   }
 
   /// Mark the user as active: hold the screen awake (if they've asked us to)
@@ -137,7 +150,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     ref.read(volumeButtonServiceProvider).stop(owner: this);
     // Best-effort: hand DND and the screen timeout back to the system as we
     // tear down.
-    ref.read(dndServiceProvider).setEnabled(false);
+    ref.read(dndServiceProvider).release(this);
     _releaseWakelock();
     _confetti.dispose();
     super.dispose();
@@ -169,6 +182,13 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     ref.listen<bool>(
       settingsProvider.select((s) => s.keepScreenAwake),
       (_, enabled) => enabled ? _noteActivity() : _releaseWakelock(),
+    );
+    // Same for Do Not Disturb, so the Settings switch is the thing that
+    // actually decides whether the phone is silenced — not just a note of
+    // what the app would like next time it gets around to applying it.
+    ref.listen<bool>(
+      settingsProvider.select((s) => s.dndWhileCounting),
+      (_, _) => _applyDnd(true),
     );
 
     final goalCount = settings.dailyGoalCount;

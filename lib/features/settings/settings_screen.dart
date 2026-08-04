@@ -17,6 +17,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _goalController;
 
+  /// Whether the phone is actually silenced right now, as opposed to whether
+  /// the preference says it should be. The two can only drift if something is
+  /// wrong, which is exactly when it's worth being able to see both.
+  bool _dndActive = false;
+
   @override
   void initState() {
     super.initState();
@@ -25,6 +30,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _goalController = TextEditingController(
       text: settings.dailyGoalCount.toString(),
     );
+    _refreshDndState();
+  }
+
+  Future<void> _refreshDndState() async {
+    final dnd = ref.read(dndServiceProvider);
+    // The dashboard applies the preference asynchronously; reading the filter
+    // before that lands would just show the old value back.
+    await dnd.settled;
+    final active = await dnd.isEnabled();
+    if (mounted && active != _dndActive) setState(() => _dndActive = active);
   }
 
   @override
@@ -79,9 +94,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
 
     // Persist intent regardless — once access is granted it applies while the
-    // app is in the foreground.
+    // app is in the foreground. The dashboard is listening to this preference
+    // and holds or drops the silence accordingly; setting the filter from here
+    // too would mean two places deciding, and the loser leaves the phone in a
+    // state the switch doesn't admit to.
     await controller.setDndWhileCounting(value);
-    await dnd.setEnabled(value);
+    await _refreshDndState();
   }
 
   Future<void> _onProgressNotificationChanged(bool value) async {
@@ -268,9 +286,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Icons.do_not_disturb_on,
             iconColor: Colors.redAccent,
             title: 'Silence while chanting',
-            subtitle: ref.read(dndServiceProvider).isSupported
-                ? 'Mute calls & notifications while the app is open'
-                : 'Not available on this device',
+            subtitle: !ref.read(dndServiceProvider).isSupported
+                ? 'Not available on this device'
+                : _dndActive
+                ? 'Phone is silenced right now'
+                : 'Mute calls & notifications while the app is open',
             value: settings.dndWhileCounting,
             onChanged: ref.read(dndServiceProvider).isSupported
                 ? _onDndChanged

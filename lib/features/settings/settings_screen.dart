@@ -22,8 +22,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     super.initState();
     final settings = ref.read(settingsProvider);
     _nameController = TextEditingController(text: settings.name);
-    _goalController =
-        TextEditingController(text: settings.dailyGoalCount.toString());
+    _goalController = TextEditingController(
+      text: settings.dailyGoalCount.toString(),
+    );
   }
 
   @override
@@ -35,14 +36,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _save() async {
     final controller = ref.read(settingsProvider.notifier);
-    final goal = int.tryParse(_goalController.text.trim()) ??
+    final goal =
+        int.tryParse(_goalController.text.trim()) ??
         AppConstants.defaultDailyGoalCount;
     await controller.updateName(_nameController.text);
     await controller.updateGoalCount(goal);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Settings saved')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Settings saved')));
     Navigator.of(context).maybePop();
   }
 
@@ -173,11 +175,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Wrap(
             spacing: 8,
             children: [1, 3, 5, 10, 16]
-                .map((m) => ActionChip(
-                      label: Text('$m Mala'),
-                      onPressed: () => setState(() => _goalController.text =
-                          (m * AppConstants.countsPerMala).toString()),
-                    ))
+                .map(
+                  (m) => ActionChip(
+                    label: Text('$m Mala'),
+                    onPressed: () => setState(
+                      () => _goalController.text =
+                          (m * AppConstants.countsPerMala).toString(),
+                    ),
+                  ),
+                )
                 .toList(),
           ),
           const SizedBox(height: 28),
@@ -220,6 +226,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             value: settings.autoReset,
             onChanged: ref.read(settingsProvider.notifier).setAutoReset,
           ),
+          const SizedBox(height: 12),
+          _ToggleCard(
+            icon: Icons.screen_lock_portrait,
+            iconColor: Colors.lightBlue,
+            title: 'Keep Screen Awake',
+            subtitle:
+                'Stay unlocked while counting · releases after '
+                '${AppConstants.wakelockIdleTimeout.inMinutes} min idle',
+            value: settings.keepScreenAwake,
+            onChanged: ref.read(settingsProvider.notifier).setKeepScreenAwake,
+          ),
           const SizedBox(height: 28),
           _sectionTitle(theme, 'Do Not Disturb'),
           const SizedBox(height: 12),
@@ -250,8 +267,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 12),
             AppCard(
               onTap: _pickReminderTime,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 children: [
                   Icon(Icons.schedule, color: theme.colorScheme.primary),
@@ -273,8 +289,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Icon(Icons.chevron_right,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
+                  Icon(
+                    Icons.chevron_right,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
                 ],
               ),
             ),
@@ -288,8 +306,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             child: Row(
               children: [
-                Icon(Icons.info_outline,
-                    size: 20, color: theme.colorScheme.primary),
+                Icon(
+                  Icons.info_outline,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -310,10 +331,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _sectionTitle(ThemeData theme, String text) => Text(
-        text,
-        style:
-            theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-      );
+    text,
+    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+  );
 }
 
 class _ToggleCard extends StatelessWidget {
@@ -349,13 +369,16 @@ class _ToggleCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text(subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color:
-                          theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    )),
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
               ],
             ),
           ),

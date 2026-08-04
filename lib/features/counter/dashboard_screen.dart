@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +12,7 @@ import '../../providers/service_providers.dart';
 import '../../providers/settings_controller.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/mala_progress_bar.dart';
+import '../focus/focus_screen.dart';
 import '../history/history_screen.dart';
 import '../settings/settings_screen.dart';
 import '../share/share_sheet.dart';
@@ -27,6 +30,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     with WidgetsBindingObserver {
   late final ConfettiController _confetti;
   int _quoteIndex = 0;
+  Timer? _idleTimer;
 
   @override
   void initState() {
@@ -37,6 +41,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _startVolume();
       _applyDnd(true);
+      _noteActivity();
       ref
           .read(counterProvider.notifier)
           .celebration
@@ -66,15 +71,43 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     await ref.read(dndServiceProvider).setEnabled(enable);
   }
 
+  /// Mark the user as active: hold the screen awake (if they've asked us to)
+  /// and restart the idle countdown.
+  ///
+  /// Called on every count and every touch, so a real chanting session — where
+  /// minutes can pass between beads but never [AppConstants.wakelockIdleTimeout]
+  /// — never sees the screen drop. A dashboard left open and forgotten does,
+  /// which is the only case where holding the display on is pure battery waste.
+  void _noteActivity() {
+    if (!ref.read(settingsProvider).keepScreenAwake) {
+      _releaseWakelock();
+      return;
+    }
+    ref.read(wakelockServiceProvider).acquire(this);
+    _idleTimer?.cancel();
+    _idleTimer = Timer(AppConstants.wakelockIdleTimeout, () {
+      ref.read(wakelockServiceProvider).release(this);
+    });
+  }
+
+  void _releaseWakelock() {
+    _idleTimer?.cancel();
+    _idleTimer = null;
+    ref.read(wakelockServiceProvider).release(this);
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       ref.read(counterProvider.notifier).onResume();
       _startVolume();
       _applyDnd(true);
+      _noteActivity();
     } else if (state == AppLifecycleState.paused) {
       ref.read(volumeButtonServiceProvider).stop();
       _applyDnd(false);
+      // Never hold the screen awake once we're out of the foreground.
+      _releaseWakelock();
     }
   }
 
@@ -86,8 +119,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
         .celebration
         .removeListener(_onCelebrationChanged);
     ref.read(volumeButtonServiceProvider).stop();
-    // Best-effort: hand DND back to the system as we tear down.
+    // Best-effort: hand DND and the screen timeout back to the system as we
+    // tear down.
     ref.read(dndServiceProvider).setEnabled(false);
+    _releaseWakelock();
     _confetti.dispose();
     super.dispose();
   }
@@ -107,98 +142,116 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen>
     final counter = ref.watch(counterProvider);
     final controller = ref.read(counterProvider.notifier);
 
+    // A count is the clearest signal that someone is mid-session — including
+    // volume-button presses, which never touch the screen and so would
+    // otherwise look like idleness to the system.
+    ref.listen<CounterState>(counterProvider, (prev, next) {
+      if (prev?.todayCount != next.todayCount) _noteActivity();
+    });
+    // Apply the preference the moment it's toggled in Settings, rather than
+    // waiting for the next count.
+    ref.listen<bool>(
+      settingsProvider.select((s) => s.keepScreenAwake),
+      (_, enabled) => enabled ? _noteActivity() : _releaseWakelock(),
+    );
+
     final goalCount = settings.dailyGoalCount;
     final progress = goalCount > 0 ? counter.todayCount / goalCount : 0.0;
 
     return Scaffold(
-      body: Stack(
-        alignment: Alignment.topCenter,
-        children: [
-          SafeArea(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final contentWidth = constraints.maxWidth - 10;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: SizedBox(
-                    width: contentWidth,
-                    height: constraints.maxHeight,
-                    // BoxFit.fill with matching widths scales only the vertical
-                    // axis, so the content keeps its full width (just the 10px
-                    // side padding) while shrinking to fit the height.
-                    child: FittedBox(
-                      fit: BoxFit.fill,
-                      child: SizedBox(
-                        width: contentWidth,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _Header(name: settings.name),
-                              const SizedBox(height: 20),
-                              CounterHeroCard(
-                                count: counter.todayCount,
-                                malaText: counter.todayBreakdown.formatted,
-                                goalCount: goalCount,
-                                progress: progress,
-                              ),
-                              const SizedBox(height: 16),
-                              _TotalCard(
-                                totalCount: counter.totalCount,
-                                totalMala: counter.totalBreakdown.formatted,
-                              ),
-                              const SizedBox(height: 16),
-                              _GoalCard(
-                                todayCount: counter.todayCount,
-                                goalCount: goalCount,
-                              ),
-                              const SizedBox(height: 20),
-                              DashboardActionButtons(
-                                onIncrement: controller.increment,
-                                onDecrement: controller.decrement,
-                              ),
-                              const SizedBox(height: 24),
-                              _BottomActions(
-                                onHistory: () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const HistoryScreen(),
-                                  ),
+      body: Listener(
+        // Touching anything on the dashboard counts as being present too.
+        onPointerDown: (_) => _noteActivity(),
+        child: Stack(
+          alignment: Alignment.topCenter,
+          children: [
+            SafeArea(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final contentWidth = constraints.maxWidth - 10;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: SizedBox(
+                      width: contentWidth,
+                      height: constraints.maxHeight,
+                      // BoxFit.fill with matching widths scales only the vertical
+                      // axis, so the content keeps its full width (just the 10px
+                      // side padding) while shrinking to fit the height.
+                      child: FittedBox(
+                        fit: BoxFit.fill,
+                        child: SizedBox(
+                          width: contentWidth,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _Header(name: settings.name),
+                                const SizedBox(height: 20),
+                                CounterHeroCard(
+                                  count: counter.todayCount,
+                                  malaText: counter.todayBreakdown.formatted,
+                                  goalCount: goalCount,
+                                  progress: progress,
                                 ),
-                                onShare: () => ShareSheet.show(context),
-                                onReset: _confirmReset,
-                              ),
-                              const SizedBox(height: 20),
-                              _QuoteCard(
-                                quote: AppConstants.quotes[_quoteIndex],
-                              ),
-                            ],
+                                const SizedBox(height: 16),
+                                _TotalCard(
+                                  totalCount: counter.totalCount,
+                                  totalMala: counter.totalBreakdown.formatted,
+                                ),
+                                const SizedBox(height: 16),
+                                _GoalCard(
+                                  todayCount: counter.todayCount,
+                                  goalCount: goalCount,
+                                ),
+                                const SizedBox(height: 20),
+                                DashboardActionButtons(
+                                  onIncrement: controller.increment,
+                                  onDecrement: controller.decrement,
+                                ),
+                                const SizedBox(height: 24),
+                                _BottomActions(
+                                  onFocus: () => FocusScreen.open(context),
+                                  onHistory: () => Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => const HistoryScreen(),
+                                    ),
+                                  ),
+                                  onShare: () => ShareSheet.show(context),
+                                  onReset: _confirmReset,
+                                ),
+                                const SizedBox(height: 20),
+                                _QuoteCard(
+                                  quote: AppConstants.quotes[_quoteIndex],
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                );
-              },
+                  );
+                },
+              ),
             ),
-          ),
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _confetti,
-              blastDirectionality: BlastDirectionality.explosive,
-              shouldLoop: false,
-              numberOfParticles: 24,
-              gravity: 0.25,
-              colors: const [
-                AppTheme.saffron,
-                AppTheme.deepOrange,
-                Colors.amber,
-                Colors.white,
-              ],
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConfettiWidget(
+                confettiController: _confetti,
+                blastDirectionality: BlastDirectionality.explosive,
+                shouldLoop: false,
+                numberOfParticles: 24,
+                gravity: 0.25,
+                colors: const [
+                  AppTheme.saffron,
+                  AppTheme.deepOrange,
+                  Colors.amber,
+                  Colors.white,
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -414,11 +467,13 @@ class _GoalCard extends StatelessWidget {
 
 class _BottomActions extends StatelessWidget {
   const _BottomActions({
+    required this.onFocus,
     required this.onHistory,
     required this.onShare,
     required this.onReset,
   });
 
+  final VoidCallback onFocus;
   final VoidCallback onHistory;
   final VoidCallback onShare;
   final VoidCallback onReset;
@@ -427,6 +482,17 @@ class _BottomActions extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
+        // Focus takes the filled treatment: sitting down to chant is the
+        // primary act here, in a way that resetting the day never was.
+        Expanded(
+          child: _ActionButton(
+            icon: Icons.self_improvement,
+            label: 'Focus',
+            onTap: onFocus,
+            filled: true,
+          ),
+        ),
+        const SizedBox(width: 12),
         Expanded(
           child: _ActionButton(
             icon: Icons.history,
@@ -448,7 +514,6 @@ class _BottomActions extends StatelessWidget {
             icon: Icons.refresh,
             label: 'Reset',
             onTap: onReset,
-            filled: true,
           ),
         ),
       ],

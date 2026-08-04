@@ -16,10 +16,7 @@ class DailyRecordAdapter extends TypeAdapter<DailyRecord> {
     final fields = <int, dynamic>{
       for (int i = 0; i < numOfFields; i++) reader.readByte(): reader.read(),
     };
-    return DailyRecord(
-      date: fields[0] as String,
-      count: fields[1] as int,
-    );
+    return DailyRecord(date: fields[0] as String, count: fields[1] as int);
   }
 
   @override

@@ -45,8 +45,7 @@ class ShareSheet extends ConsumerWidget {
           backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.15),
           child: Icon(icon, color: theme.colorScheme.primary),
         ),
-        title: Text(title,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(subtitle),
         trailing: const Icon(Icons.share, size: 18),
         onTap: onTap,
@@ -62,9 +61,12 @@ class ShareSheet extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
-              child: Text('Share your progress',
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold)),
+              child: Text(
+                'Share your progress',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
             option(
               icon: Icons.today,

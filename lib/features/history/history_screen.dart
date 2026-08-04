@@ -36,9 +36,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           IconButton(
             tooltip: 'Statistics',
             icon: const Icon(Icons.bar_chart),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const StatisticsScreen()),
-            ),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const StatisticsScreen())),
           ),
           IconButton(
             tooltip: 'Share summary',
@@ -89,7 +89,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               ButtonSegment(value: _HistoryView.daily, label: Text('Daily')),
               ButtonSegment(value: _HistoryView.weekly, label: Text('Weekly')),
               ButtonSegment(
-                  value: _HistoryView.monthly, label: Text('Monthly')),
+                value: _HistoryView.monthly,
+                label: Text('Monthly'),
+              ),
               ButtonSegment(value: _HistoryView.yearly, label: Text('Yearly')),
             ],
             selected: {_view},
@@ -99,8 +101,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           const SizedBox(height: 16),
           Text(
             _titleForView(),
-            style: theme.textTheme.titleMedium
-                ?.copyWith(fontWeight: FontWeight.bold),
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 12),
           ..._buildList(history),
@@ -126,10 +129,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     if (_view == _HistoryView.daily) {
       if (history.daily.isEmpty) return [const _EmptyHistory()];
       return history.daily
-          .map((r) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _DailyRecordTile(record: r),
-              ))
+          .map(
+            (r) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _DailyRecordTile(record: r),
+            ),
+          )
           .toList();
     }
 
@@ -141,19 +146,20 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     };
     if (summaries.isEmpty) return [const _EmptyHistory()];
     return summaries
-        .map((s) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _SummaryTile(summary: s),
-            ))
+        .map(
+          (s) => Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: _SummaryTile(summary: s),
+          ),
+        )
         .toList();
   }
 
   void _shareSummary(StatisticsSnapshot stats) {
     final name = ref.read(settingsProvider).name;
-    final message = ref.read(shareServiceProvider).weeklyMessage(
-          name: name,
-          totalCount: stats.thisWeek.count,
-        );
+    final message = ref
+        .read(shareServiceProvider)
+        .weeklyMessage(name: name, totalCount: stats.thisWeek.count);
     ref.read(shareServiceProvider).shareText(message);
   }
 }
@@ -166,20 +172,24 @@ class _TotalsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     Widget cell(String label, String value) => Expanded(
-          child: Column(
-            children: [
-              Text(value,
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 2),
-              Text(label,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color:
-                        theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                  )),
-            ],
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
           ),
-        );
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
+        ],
+      ),
+    );
     return AppCard(
       child: Row(
         children: [
@@ -225,13 +235,17 @@ class _DailyRecordTile extends StatelessWidget {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('${record.count} counts',
-                  style: TextStyle(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  )),
-              Text('${b.mala} Mala · ${b.remaining} remaining',
-                  style: theme.textTheme.bodySmall),
+              Text(
+                '${record.count} counts',
+                style: TextStyle(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '${b.mala} Mala · ${b.remaining} remaining',
+                style: theme.textTheme.bodySmall,
+              ),
             ],
           ),
         ],
@@ -255,26 +269,33 @@ class _SummaryTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(summary.label,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text('${summary.days} active day(s)',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color:
-                          theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                    )),
+                Text(
+                  summary.label,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '${summary.days} active day(s)',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
               ],
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('${summary.count} counts',
-                  style: TextStyle(
-                    color: theme.colorScheme.primary,
-                    fontWeight: FontWeight.bold,
-                  )),
-              Text('${summary.mala} Mala · ${summary.remaining} remaining',
-                  style: theme.textTheme.bodySmall),
+              Text(
+                '${summary.count} counts',
+                style: TextStyle(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                '${summary.mala} Mala · ${summary.remaining} remaining',
+                style: theme.textTheme.bodySmall,
+              ),
             ],
           ),
         ],
@@ -293,19 +314,25 @@ class _EmptyHistory extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 60),
       child: Column(
         children: [
-          Icon(Icons.history,
-              size: 56,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.3)),
+          Icon(
+            Icons.history,
+            size: 56,
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+          ),
           const SizedBox(height: 16),
-          Text('No history yet',
-              style: theme.textTheme.titleMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-              )),
+          Text(
+            'No history yet',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+            ),
+          ),
           const SizedBox(height: 6),
-          Text('Start counting to build your history',
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-              )),
+          Text(
+            'Start counting to build your history',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+            ),
+          ),
         ],
       ),
     );

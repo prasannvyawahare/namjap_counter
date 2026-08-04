@@ -8,10 +8,7 @@ part 'daily_record.g.dart';
 /// `yyyy-MM-dd` date string, so each calendar day owns exactly one record.
 @HiveType(typeId: 0)
 class DailyRecord extends HiveObject {
-  DailyRecord({
-    required this.date,
-    this.count = 0,
-  });
+  DailyRecord({required this.date, this.count = 0});
 
   /// `yyyy-MM-dd` key for the day this record represents.
   @HiveField(0)

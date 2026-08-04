@@ -40,7 +40,14 @@ enum CelebrationKind { none, mala, goal }
 
 class CounterController extends StateNotifier<CounterState> {
   CounterController(this._repo, this._ref) : super(_load(_repo, _ref)) {
-    _syncActiveDate();
+    // Deferred by a microtask rather than called inline: _syncActiveDate writes
+    // the active date back to settingsProvider, and modifying one provider
+    // while another is still building is an error Riverpod asserts against.
+    // The `mounted` guard covers a container torn down before the microtask
+    // runs, which would otherwise read from a disposed provider.
+    Future.microtask(() {
+      if (mounted) _syncActiveDate();
+    });
   }
 
   final NamjapRepository _repo;
@@ -112,10 +119,7 @@ class CounterController extends StateNotifier<CounterState> {
 
   Future<void> _apply(int next) async {
     await _repo.setCount(state.activeDate, next);
-    state = state.copyWith(
-      todayCount: next,
-      totalCount: _repo.totalCount(),
-    );
+    state = state.copyWith(todayCount: next, totalCount: _repo.totalCount());
     _bump();
   }
 
@@ -161,7 +165,8 @@ class CounterController extends StateNotifier<CounterState> {
   }
 }
 
-final counterProvider =
-    StateNotifierProvider<CounterController, CounterState>((ref) {
+final counterProvider = StateNotifierProvider<CounterController, CounterState>((
+  ref,
+) {
   return CounterController(ref.watch(repositoryProvider), ref);
 });

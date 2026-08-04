@@ -43,6 +43,9 @@ class SettingsController extends StateNotifier<UserSettings> {
   Future<void> setDndWhileCounting(bool value) =>
       _persist(state.copyWith(dndWhileCounting: value));
 
+  Future<void> setKeepScreenAwake(bool value) =>
+      _persist(state.copyWith(keepScreenAwake: value));
+
   Future<void> setReminderEnabled(bool value) =>
       _persist(state.copyWith(reminderEnabled: value));
 
@@ -52,8 +55,8 @@ class SettingsController extends StateNotifier<UserSettings> {
 
 final settingsProvider =
     StateNotifierProvider<SettingsController, UserSettings>((ref) {
-  return SettingsController(ref.watch(repositoryProvider));
-});
+      return SettingsController(ref.watch(repositoryProvider));
+    });
 
 /// Theme mode derived from the dark-mode preference.
 final themeModeProvider = Provider<ThemeMode>((ref) {

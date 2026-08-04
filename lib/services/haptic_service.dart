@@ -37,7 +37,10 @@ class HapticService {
     await _ensureChecked();
     try {
       if (_hasVibrator) {
-        await Vibration.vibrate(pattern: [0, 60, 40, 120], intensities: [0, 200, 0, 255]);
+        await Vibration.vibrate(
+          pattern: [0, 60, 40, 120],
+          intensities: [0, 200, 0, 255],
+        );
       } else {
         await HapticFeedback.heavyImpact();
       }

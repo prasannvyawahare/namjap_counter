@@ -51,24 +51,28 @@ class _StatRow extends StatelessWidget {
         children: [
           CircleAvatar(
             radius: 24,
-            backgroundColor:
-                theme.colorScheme.primary.withValues(alpha: 0.15),
+            backgroundColor: theme.colorScheme.primary.withValues(alpha: 0.15),
             child: Icon(icon, color: theme.colorScheme.primary),
           ),
           const SizedBox(width: 16),
           Expanded(
-            child: Text(entry.label,
-                style: theme.textTheme.titleMedium
-                    ?.copyWith(fontWeight: FontWeight.bold)),
+            child: Text(
+              entry.label,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text('${entry.count}',
-                  style: theme.textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.primary,
-                  )),
+              Text(
+                '${entry.count}',
+                style: theme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
               Text('${entry.mala} Mala', style: theme.textTheme.bodySmall),
             ],
           ),

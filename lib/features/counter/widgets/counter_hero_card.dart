@@ -42,8 +42,7 @@ class CounterHeroCard extends StatelessWidget {
             ),
             child: ShaderMask(
               key: ValueKey<int>(count),
-              shaderCallback: (bounds) =>
-                  kSaffronGradient.createShader(bounds),
+              shaderCallback: (bounds) => kSaffronGradient.createShader(bounds),
               child: Text(
                 '$count',
                 style: const TextStyle(

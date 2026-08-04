@@ -21,7 +21,10 @@ class DndService {
     if (!isSupported) return false;
     try {
       return await _channel.invokeMethod<bool>('hasPermission') ?? false;
-    } on PlatformException catch (e) {
+      // Deliberately broad: a build without the native handler registered
+      // throws MissingPluginException, which is not a PlatformException and
+      // would otherwise escape as an unhandled error mid-chant.
+    } catch (e) {
       debugPrint('DndService.hasPermission failed: $e');
       return false;
     }
@@ -32,7 +35,10 @@ class DndService {
     if (!isSupported) return;
     try {
       await _channel.invokeMethod<void>('openPolicySettings');
-    } on PlatformException catch (e) {
+      // Deliberately broad: a build without the native handler registered
+      // throws MissingPluginException, which is not a PlatformException and
+      // would otherwise escape as an unhandled error mid-chant.
+    } catch (e) {
       debugPrint('DndService.openPolicySettings failed: $e');
     }
   }
@@ -42,10 +48,14 @@ class DndService {
   Future<bool> setEnabled(bool enabled) async {
     if (!isSupported) return false;
     try {
-      return await _channel
-              .invokeMethod<bool>('setEnabled', {'enabled': enabled}) ??
+      return await _channel.invokeMethod<bool>('setEnabled', {
+            'enabled': enabled,
+          }) ??
           false;
-    } on PlatformException catch (e) {
+      // Deliberately broad: a build without the native handler registered
+      // throws MissingPluginException, which is not a PlatformException and
+      // would otherwise escape as an unhandled error mid-chant.
+    } catch (e) {
       debugPrint('DndService.setEnabled failed: $e');
       return false;
     }

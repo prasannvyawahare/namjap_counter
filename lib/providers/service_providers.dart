@@ -5,6 +5,7 @@ import '../services/haptic_service.dart';
 import '../services/notification_service.dart';
 import '../services/share_service.dart';
 import '../services/volume_button_service.dart';
+import '../services/wakelock_service.dart';
 import '../storage/namjap_repository.dart';
 
 /// Overridden in `main()` once Hive is initialised.
@@ -24,5 +25,12 @@ final volumeButtonServiceProvider = Provider<VolumeButtonService>((ref) {
 
 final dndServiceProvider = Provider<DndService>((ref) => DndService());
 
-final notificationServiceProvider =
-    Provider<NotificationService>((ref) => NotificationService());
+final wakelockServiceProvider = Provider<WakelockService>((ref) {
+  final service = WakelockService();
+  ref.onDispose(service.dispose);
+  return service;
+});
+
+final notificationServiceProvider = Provider<NotificationService>(
+  (ref) => NotificationService(),
+);

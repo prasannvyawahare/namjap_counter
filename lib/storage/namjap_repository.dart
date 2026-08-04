@@ -12,8 +12,8 @@ class NamjapRepository {
   NamjapRepository({
     required Box<DailyRecord> recordsBox,
     required Box<UserSettings> settingsBox,
-  })  : _records = recordsBox,
-        _settings = settingsBox;
+  }) : _records = recordsBox,
+       _settings = settingsBox;
 
   final Box<DailyRecord> _records;
   final Box<UserSettings> _settings;
@@ -72,8 +72,7 @@ class NamjapRepository {
   }
 
   /// Lifetime total across every recorded day.
-  int totalCount() =>
-      _records.values.fold<int>(0, (sum, r) => sum + r.count);
+  int totalCount() => _records.values.fold<int>(0, (sum, r) => sum + r.count);
 
   int countInRange(bool Function(DateTime date) test) {
     var total = 0;

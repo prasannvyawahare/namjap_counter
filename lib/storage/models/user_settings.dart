@@ -21,6 +21,7 @@ class UserSettings extends HiveObject {
     this.reminderEnabled = false,
     this.reminderHour = 6,
     this.reminderMinute = 0,
+    this.keepScreenAwake = true,
   });
 
   @HiveField(0)
@@ -66,6 +67,17 @@ class UserSettings extends HiveObject {
   @HiveField(11)
   int reminderMinute;
 
+  /// Whether the screen is held awake while the dashboard is in the foreground,
+  /// so a long volume-button session isn't cut short by the idle lock. The
+  /// wakelock is still released after a stretch with no counting, so leaving the
+  /// dashboard open by accident doesn't drain the battery.
+  ///
+  /// `defaultValue` matters here: settings persisted before this field existed
+  /// have no value at index 12, and without it the adapter would cast a null
+  /// straight to `bool` and crash on load for every existing user.
+  @HiveField(12, defaultValue: true)
+  bool keepScreenAwake;
+
   int get dailyGoalMala => dailyGoalCount ~/ AppConstants.countsPerMala;
 
   UserSettings copyWith({
@@ -81,6 +93,7 @@ class UserSettings extends HiveObject {
     bool? reminderEnabled,
     int? reminderHour,
     int? reminderMinute,
+    bool? keepScreenAwake,
   }) {
     return UserSettings(
       name: name ?? this.name,
@@ -95,6 +108,7 @@ class UserSettings extends HiveObject {
       reminderEnabled: reminderEnabled ?? this.reminderEnabled,
       reminderHour: reminderHour ?? this.reminderHour,
       reminderMinute: reminderMinute ?? this.reminderMinute,
+      keepScreenAwake: keepScreenAwake ?? this.keepScreenAwake,
     );
   }
 }

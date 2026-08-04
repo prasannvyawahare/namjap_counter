@@ -22,6 +22,8 @@ class HiveService {
     }
 
     recordsBox = await Hive.openBox<DailyRecord>(AppConstants.recordsBoxName);
-    settingsBox = await Hive.openBox<UserSettings>(AppConstants.settingsBoxName);
+    settingsBox = await Hive.openBox<UserSettings>(
+      AppConstants.settingsBoxName,
+    );
   }
 }

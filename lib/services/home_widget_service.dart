@@ -23,6 +23,7 @@ class HomeWidgetService {
   static const String keyRemaining = 'namjap_remaining';
   static const String keyStreak = 'namjap_streak';
   static const String keyPercent = 'namjap_percent';
+  static const String keyDark = 'namjap_dark';
 
   /// Widgets only exist on Android here; everywhere else this is a no-op so
   /// callers don't have to guard.
@@ -52,6 +53,7 @@ class HomeWidgetService {
         HomeWidget.saveWidgetData<int>(keyRemaining, snapshot.remaining),
         HomeWidget.saveWidgetData<int>(keyStreak, snapshot.streak),
         HomeWidget.saveWidgetData<int>(keyPercent, snapshot.percent),
+        HomeWidget.saveWidgetData<bool>(keyDark, snapshot.darkMode),
       ]);
       await HomeWidget.updateWidget(androidName: androidWidgetName);
     } catch (e) {

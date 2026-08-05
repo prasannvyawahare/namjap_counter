@@ -4,11 +4,34 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:namjap_counter/core/models/progress_snapshot.dart';
 import 'package:namjap_counter/core/utils/date_helpers.dart';
+import 'package:namjap_counter/services/home_widget_service.dart';
 import 'package:namjap_counter/services/namjap_action.dart';
+import 'package:namjap_counter/services/notification_service.dart';
 import 'package:namjap_counter/services/progress_sync_service.dart';
 import 'package:namjap_counter/storage/models/daily_record.dart';
 import 'package:namjap_counter/storage/models/user_settings.dart';
 import 'package:namjap_counter/storage/namjap_repository.dart';
+
+/// The two surfaces ProgressSyncService paints, stubbed out.
+///
+/// `flutter test` reports [defaultTargetPlatform] as android, so the services'
+/// own platform guards do not apply here and the real ones would reach for the
+/// notification plugin and the timezone database.
+class _SilentNotifications extends NotificationService {
+  @override
+  Future<void> showProgress(
+    ProgressSnapshot snapshot, {
+    required bool dismissWhenComplete,
+  }) async {}
+
+  @override
+  Future<void> cancelProgress() async {}
+}
+
+class _SilentWidget extends HomeWidgetService {
+  @override
+  Future<void> push(ProgressSnapshot snapshot) async {}
+}
 
 void main() {
   group('ProgressSnapshot', () {
@@ -18,6 +41,7 @@ void main() {
       goalCount: goal,
       streak: 3,
       totalCount: count,
+      darkMode: true,
     );
 
     test('reports what is left of the goal', () {
@@ -90,6 +114,15 @@ void main() {
     test('the uri a button broadcasts round-trips back to its action', () {
       for (final action in NamjapAction.values) {
         expect(NamjapAction.fromUri(action.uri), action);
+        // Parsing again is the trip the real uri makes: the widget builds the
+        // string in Kotlin and Dart parses it back.
+        expect(NamjapAction.fromUri(Uri.parse(action.uri.toString())), action);
+      }
+    });
+
+    test('uri hosts are lowercase, because Uri.parse lowercases them', () {
+      for (final action in NamjapAction.values) {
+        expect(action.uriHost, action.uriHost.toLowerCase());
       }
     });
   });
@@ -199,6 +232,41 @@ void main() {
       await repo.setCount(daysAgo(1), 0);
       await repo.setCount(daysAgo(2), 108);
       expect(repo.currentStreak(), 0);
+    });
+
+    group('ProgressSyncService.apply', () {
+      // The notification and widget are no-ops off Android, so this exercises
+      // the storage side on its own.
+      ProgressSyncService sync() => ProgressSyncService(
+        repository: repo,
+        notificationService: _SilentNotifications(),
+        homeWidgetService: _SilentWidget(),
+      );
+
+      test('counts through the repository, clamping at zero', () async {
+        await sync().apply(NamjapAction.increment);
+        await sync().apply(NamjapAction.increment);
+        expect(repo.countFor(DateTime.now()), 2);
+
+        for (var i = 0; i < 5; i++) {
+          await sync().apply(NamjapAction.decrement);
+        }
+        expect(repo.countFor(DateTime.now()), 0);
+      });
+
+      test('the snapshot carries the theme the widget paints with', () async {
+        expect(
+          (await sync().apply(NamjapAction.refresh)).darkMode,
+          repo.loadSettings().darkMode,
+        );
+      });
+
+      test('a refresh changes nothing', () async {
+        await repo.setCount(DateTime.now(), 7);
+        final snapshot = await sync().apply(NamjapAction.refresh);
+        expect(snapshot.count, 7);
+        expect(repo.countFor(DateTime.now()), 7);
+      });
     });
   });
 }

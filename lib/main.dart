@@ -62,6 +62,7 @@ Future<void> main() async {
   container.listen(settingsProvider, (previous, next) {
     if (previous == null) return;
     if (previous.dailyGoalCount != next.dailyGoalCount ||
+        previous.darkMode != next.darkMode ||
         previous.progressNotificationEnabled !=
             next.progressNotificationEnabled ||
         previous.dismissNotificationOnGoalComplete !=

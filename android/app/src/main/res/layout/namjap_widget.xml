@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Home screen widget. Every value shown here is written by the Flutter side
      via home_widget and read back in NamjapWidgetProvider; the layout itself
-     holds no state. -->
+     holds no state.
+
+     The colours below are the dark scheme, which is the app's default. The
+     provider re-points the backgrounds and text colours at the light set when
+     the app's own dark-mode preference is off — the widget follows the app's
+     theme, not the system's. -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@drawable/widget_background"
+    android:background="@drawable/widget_background_dark"
     android:padding="14dp">
 
     <LinearLayout
@@ -30,7 +36,7 @@
             android:layout_weight="1"
             android:layout_marginStart="7dp"
             android:text="@string/widget_title"
-            android:textColor="#E6FFFFFF"
+            android:textColor="@color/widget_dark_on_surface_muted"
             android:textSize="13sp"
             android:maxLines="1"
             android:ellipsize="end" />
@@ -41,20 +47,33 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="6dp"
-        android:textColor="#FFFFFFFF"
+        android:textColor="@color/widget_dark_on_surface"
         android:textSize="22sp"
         android:textStyle="bold"
         android:maxLines="1"
         android:ellipsize="end" />
 
+    <!-- Two bars rather than one: a ProgressBar's progressDrawable cannot be
+         swapped through RemoteViews, so the themed pair is built into the
+         layout and the provider shows whichever one belongs. -->
     <ProgressBar
-        android:id="@+id/widget_progress"
+        android:id="@+id/widget_progress_dark"
         style="?android:attr/progressBarStyleHorizontal"
         android:layout_width="match_parent"
         android:layout_height="6dp"
         android:layout_marginTop="8dp"
         android:max="100"
-        android:progressDrawable="@drawable/widget_progress" />
+        android:progressDrawable="@drawable/widget_progress_dark" />
+
+    <ProgressBar
+        android:id="@+id/widget_progress_light"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="6dp"
+        android:layout_marginTop="8dp"
+        android:max="100"
+        android:visibility="gone"
+        android:progressDrawable="@drawable/widget_progress_light" />
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -67,7 +86,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:textColor="#E6FFFFFF"
+            android:textColor="@color/widget_dark_on_surface_muted"
             android:textSize="13sp"
             android:maxLines="1"
             android:ellipsize="end" />
@@ -76,7 +95,7 @@
             android:id="@+id/widget_streak"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#FFFFFFFF"
+            android:textColor="@color/widget_dark_on_surface"
             android:textSize="13sp"
             android:textStyle="bold"
             android:maxLines="1" />
@@ -96,10 +115,10 @@
             android:layout_height="42dp"
             android:layout_weight="1"
             android:layout_gravity="center_vertical"
-            android:background="@drawable/widget_button"
+            android:background="@drawable/widget_button_surface_dark"
             android:gravity="center"
             android:text="@string/widget_open"
-            android:textColor="#FFFFFFFF"
+            android:textColor="@color/widget_saffron"
             android:textSize="15sp"
             android:textStyle="bold"
             android:contentDescription="@string/widget_open_description" />
@@ -111,7 +130,7 @@
             android:layout_weight="1.5"
             android:layout_gravity="center_vertical"
             android:layout_marginStart="10dp"
-            android:background="@drawable/widget_button"
+            android:background="@drawable/widget_button_primary_dark"
             android:gravity="center"
             android:text="@string/widget_increment"
             android:textColor="#FFFFFFFF"

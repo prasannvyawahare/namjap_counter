@@ -21,7 +21,10 @@ import 'namjap_action.dart';
 class NotificationService {
   NotificationService();
 
-  final FlutterLocalNotificationsPlugin _plugin =
+  /// Built on first use, not on construction: every entry point guards on
+  /// [isSupported] first, so on a platform with no notification shade the
+  /// plugin is never reached for at all.
+  late final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
   bool _initialized = false;
@@ -224,7 +227,7 @@ class NotificationService {
   /// The quick actions, laid out left to right in this order.
   ///
   /// +1 is last so it lands on the right, under the thumb and matching the
-  /// home screen widget — it is the one pressed over and over, while Open is
+  /// home screen widget: it is the one pressed over and over, while Open is
   /// the rare escape hatch.
   ///
   /// `cancelNotification: false` is essential — the plugin's broadcast receiver

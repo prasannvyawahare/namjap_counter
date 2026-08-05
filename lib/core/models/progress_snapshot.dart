@@ -13,6 +13,7 @@ class ProgressSnapshot {
     required this.goalCount,
     required this.streak,
     required this.totalCount,
+    required this.darkMode,
   });
 
   /// `yyyy-MM-dd` of the day these numbers describe. Consumers that outlive a
@@ -24,6 +25,11 @@ class ProgressSnapshot {
   final int goalCount;
   final int streak;
   final int totalCount;
+
+  /// The app's own dark-mode preference. The home screen widget paints itself
+  /// from this rather than the system theme, so it matches the app the user
+  /// actually sees rather than drifting away from it.
+  final bool darkMode;
 
   bool get hasGoal => goalCount > 0;
 
@@ -42,14 +48,19 @@ class ProgressSnapshot {
 
   int get goalMala => goalCount ~/ AppConstants.countsPerMala;
 
-  ProgressSnapshot copyWith({int? count, int? goalCount, int? streak}) =>
-      ProgressSnapshot(
-        dateKey: dateKey,
-        count: count ?? this.count,
-        goalCount: goalCount ?? this.goalCount,
-        streak: streak ?? this.streak,
-        totalCount: totalCount,
-      );
+  ProgressSnapshot copyWith({
+    int? count,
+    int? goalCount,
+    int? streak,
+    bool? darkMode,
+  }) => ProgressSnapshot(
+    dateKey: dateKey,
+    count: count ?? this.count,
+    goalCount: goalCount ?? this.goalCount,
+    streak: streak ?? this.streak,
+    totalCount: totalCount,
+    darkMode: darkMode ?? this.darkMode,
+  );
 
   @override
   bool operator ==(Object other) =>
@@ -59,10 +70,12 @@ class ProgressSnapshot {
           other.count == count &&
           other.goalCount == goalCount &&
           other.streak == streak &&
-          other.totalCount == totalCount;
+          other.totalCount == totalCount &&
+          other.darkMode == darkMode;
 
   @override
-  int get hashCode => Object.hash(dateKey, count, goalCount, streak, totalCount);
+  int get hashCode =>
+      Object.hash(dateKey, count, goalCount, streak, totalCount, darkMode);
 
   @override
   String toString() =>

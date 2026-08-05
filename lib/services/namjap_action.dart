@@ -37,7 +37,19 @@ enum NamjapAction {
     _ => NamjapAction.refresh,
   };
 
-  Uri get uri => Uri(scheme: scheme, host: name);
+  /// The host half of [uri].
+  ///
+  /// Spelled out rather than taken from [name] because hosts are
+  /// case-insensitive: `Uri.parse` lowercases them, so a camelCase name would
+  /// come back as something [fromUri] no longer recognises and every tap would
+  /// silently degrade into a repaint.
+  String get uriHost => switch (this) {
+    NamjapAction.increment => 'increment',
+    NamjapAction.decrement => 'decrement',
+    NamjapAction.refresh => 'refresh',
+  };
+
+  Uri get uri => Uri(scheme: scheme, host: uriHost);
 }
 
 /// Lets a background isolate hand an action to the running app instead of

@@ -4,7 +4,9 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
+import android.view.View
 import android.widget.RemoteViews
+import androidx.core.content.ContextCompat
 import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 import es.antonborri.home_widget.HomeWidgetLaunchIntent
 import es.antonborri.home_widget.HomeWidgetProvider
@@ -19,6 +21,9 @@ import java.util.Locale
  * key/value store that the Flutter side writes on every change, and the two
  * buttons hand straight back to Dart — `+1` through home_widget's background
  * broadcast, `Open` through the launch intent.
+ *
+ * Colours follow the app's own dark-mode preference rather than the system
+ * theme, so the widget matches the app the user actually sees.
  */
 class NamjapWidgetProvider : HomeWidgetProvider() {
 
@@ -41,38 +46,114 @@ class NamjapWidgetProvider : HomeWidgetProvider() {
         // A streak carries into the new day: it only breaks once a day ends
         // with nothing chanted, which yesterday's value already accounts for.
         val streak = widgetData.readInt(KEY_STREAK)
+        val dark = widgetData.getBoolean(KEY_DARK, true)
 
         for (widgetId in appWidgetIds) {
-            val views = RemoteViews(context.packageName, R.layout.namjap_widget).apply {
-                setTextViewText(
-                    R.id.widget_count,
-                    if (goal > 0) "$count / $goal Chants" else "$count Chants",
-                )
-                setTextViewText(
-                    R.id.widget_remaining,
-                    if (goal > 0) "Remaining: $remaining" else "No daily goal set",
-                )
-                setTextViewText(R.id.widget_streak, streakLabel(streak))
+            // A full update re-inflates the layout, which the launcher shows as
+            // a flash. Since a count changes nothing but text and the bar, the
+            // first paint of a widget lays it out in full and everything after
+            // is merged into the views already on screen — no re-inflation, no
+            // flicker. A theme change is the one thing that needs the full pass
+            // again, so it is tracked alongside.
+            val needsFullPaint = laidOut[widgetId] != dark
 
-                setViewVisibility(R.id.widget_progress, if (goal > 0) android.view.View.VISIBLE else android.view.View.GONE)
-                setProgressBar(R.id.widget_progress, 100, percent.coerceIn(0, 100), false)
+            val views = RemoteViews(context.packageName, R.layout.namjap_widget)
+            applyProgress(views, count, goal, remaining, percent, streak)
 
-                setOnClickPendingIntent(
-                    R.id.widget_increment,
-                    HomeWidgetBackgroundIntent.getBroadcast(context, Uri.parse(URI_INCREMENT)),
-                )
-                setOnClickPendingIntent(
-                    R.id.widget_open,
-                    HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java),
-                )
-                // Tapping the icon and name opens the app too.
-                setOnClickPendingIntent(
-                    R.id.widget_header,
-                    HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java),
-                )
+            if (needsFullPaint) {
+                applyTheme(context, views, dark)
+                applyActions(context, views)
+                appWidgetManager.updateAppWidget(widgetId, views)
+                laidOut[widgetId] = dark
+            } else {
+                appWidgetManager.partiallyUpdateAppWidget(widgetId, views)
             }
-            appWidgetManager.updateAppWidget(widgetId, views)
         }
+    }
+
+    override fun onDeleted(context: Context, appWidgetIds: IntArray) {
+        super.onDeleted(context, appWidgetIds)
+        appWidgetIds.forEach { laidOut.remove(it) }
+    }
+
+    /** The numbers — everything that changes when someone counts. */
+    private fun applyProgress(
+        views: RemoteViews,
+        count: Int,
+        goal: Int,
+        remaining: Int,
+        percent: Int,
+        streak: Int,
+    ) = views.run {
+        setTextViewText(
+            R.id.widget_count,
+            if (goal > 0) "$count / $goal Chants" else "$count Chants",
+        )
+        setTextViewText(
+            R.id.widget_remaining,
+            if (goal > 0) "Remaining: $remaining" else "No daily goal set",
+        )
+        setTextViewText(R.id.widget_streak, streakLabel(streak))
+        setProgressBar(R.id.widget_progress_dark, 100, percent.coerceIn(0, 100), false)
+        setProgressBar(R.id.widget_progress_light, 100, percent.coerceIn(0, 100), false)
+    }
+
+    /** Backgrounds and text colours, straight out of AppTheme. */
+    private fun applyTheme(context: Context, views: RemoteViews, dark: Boolean) {
+        fun color(id: Int) = ContextCompat.getColor(context, id)
+
+        val onSurface = color(if (dark) R.color.widget_dark_on_surface else R.color.widget_light_on_surface)
+        val onSurfaceMuted =
+            color(if (dark) R.color.widget_dark_on_surface_muted else R.color.widget_light_on_surface_muted)
+        val primary = color(if (dark) R.color.widget_saffron else R.color.widget_deep_orange)
+
+        views.run {
+            setInt(
+                R.id.widget_root,
+                "setBackgroundResource",
+                if (dark) R.drawable.widget_background_dark else R.drawable.widget_background_light,
+            )
+            setTextColor(R.id.widget_title, onSurfaceMuted)
+            setTextColor(R.id.widget_count, onSurface)
+            setTextColor(R.id.widget_remaining, onSurfaceMuted)
+            setTextColor(R.id.widget_streak, onSurface)
+
+            // Only one bar is ever shown; a ProgressBar's drawable cannot be
+            // swapped over RemoteViews, so the themed pair lives in the layout.
+            setViewVisibility(R.id.widget_progress_dark, if (dark) View.VISIBLE else View.GONE)
+            setViewVisibility(R.id.widget_progress_light, if (dark) View.GONE else View.VISIBLE)
+
+            setInt(
+                R.id.widget_open,
+                "setBackgroundResource",
+                if (dark) R.drawable.widget_button_surface_dark else R.drawable.widget_button_surface_light,
+            )
+            setTextColor(R.id.widget_open, primary)
+
+            setInt(
+                R.id.widget_increment,
+                "setBackgroundResource",
+                if (dark) R.drawable.widget_button_primary_dark else R.drawable.widget_button_primary_light,
+            )
+            setTextColor(R.id.widget_increment, android.graphics.Color.WHITE)
+        }
+    }
+
+    /** Where the taps go. Fixed for the life of the widget. */
+    private fun applyActions(context: Context, views: RemoteViews) = views.run {
+        setOnClickPendingIntent(
+            R.id.widget_increment,
+            HomeWidgetBackgroundIntent.getBroadcast(context, Uri.parse(URI_INCREMENT)),
+        )
+        setOnClickPendingIntent(
+            R.id.widget_open,
+            HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java),
+        )
+        // Tapping the icon and name opens the app too.
+        setOnClickPendingIntent(
+            R.id.widget_header,
+            HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java),
+        )
     }
 
     private fun streakLabel(streak: Int): String = when (streak) {
@@ -99,10 +180,19 @@ class NamjapWidgetProvider : HomeWidgetProvider() {
         const val KEY_REMAINING = "namjap_remaining"
         const val KEY_STREAK = "namjap_streak"
         const val KEY_PERCENT = "namjap_percent"
+        const val KEY_DARK = "namjap_dark"
 
         const val URI_INCREMENT = "namjap://increment"
         const val URI_REFRESH = "namjap://refresh"
 
         private val DATE_FORMAT = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+
+        /**
+         * Widget id to the theme it was last fully painted with. Kept in memory
+         * rather than on disk on purpose: a new process means a new APK or a
+         * cold start, and either way the layout deserves one honest full paint
+         * before partial updates start merging into it.
+         */
+        private val laidOut = mutableMapOf<Int, Boolean>()
     }
 }

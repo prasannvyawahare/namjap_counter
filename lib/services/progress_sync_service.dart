@@ -78,6 +78,7 @@ class ProgressSyncService {
       goalCount: resolved.dailyGoalCount,
       streak: _repo.currentStreak(asOf: date),
       totalCount: _repo.totalCount(),
+      darkMode: resolved.darkMode,
     );
   }
 

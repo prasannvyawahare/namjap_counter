@@ -29,6 +29,12 @@ class NotificationService {
 
   bool _initialized = false;
 
+  /// Set once the plugin has been found to be unreachable — a test host, or a
+  /// platform with no notification support compiled in. Remembered so the
+  /// progress notification, which is rebuilt on every single count, doesn't pay
+  /// for a doomed initialisation each time.
+  bool _unavailable = false;
+
   /// Fixed ids — there is only ever one of each, so re-posting simply
   /// overwrites, which is what keeps duplicates impossible.
   static const int _reminderId = 1001;
@@ -47,8 +53,11 @@ class NotificationService {
     iOS: DarwinNotificationDetails(),
   );
 
-  Future<void> init() async {
-    if (_initialized) return;
+  /// Prepares the plugin. Returns whether notifications can actually be posted.
+  Future<bool> init() async {
+    if (_initialized) return true;
+    if (_unavailable) return false;
+
     tzdata.initializeTimeZones();
     try {
       final localName = await FlutterTimezone.getLocalTimezone();
@@ -64,20 +73,28 @@ class NotificationService {
         requestSoundPermission: false,
       ),
     );
-    await _plugin.initialize(
-      settings,
-      // Quick-action buttons don't open the UI, so the OS hands them to a
-      // background isolate. Both callbacks route into the same handler.
-      onDidReceiveNotificationResponse: onNotificationResponse,
-      onDidReceiveBackgroundNotificationResponse: onNotificationResponse,
-    );
-    _initialized = true;
+    try {
+      await _plugin.initialize(
+        settings,
+        // Quick-action buttons don't open the UI, so the OS hands them to a
+        // background isolate. Both callbacks route into the same handler.
+        onDidReceiveNotificationResponse: onNotificationResponse,
+        onDidReceiveBackgroundNotificationResponse: onNotificationResponse,
+      );
+      _initialized = true;
+    } catch (e) {
+      // No plugin to talk to. Counting must carry on regardless — the shade is
+      // a convenience, and an unusable one is not worth an error per bead.
+      _unavailable = true;
+      debugPrint('NotificationService: notifications unavailable: $e');
+    }
+    return _initialized;
   }
 
   /// Requests OS permission to post notifications. Returns whether it is
   /// (now) granted. Safe to call repeatedly.
   Future<bool> requestPermission() async {
-    await init();
+    if (!await init()) return false;
     final android = _plugin
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
@@ -107,7 +124,7 @@ class NotificationService {
   /// (Re)schedules the daily reminder at [hour]:[minute]. Uses inexact
   /// scheduling so it works without the exact-alarm permission on Android 12+.
   Future<void> scheduleDaily(int hour, int minute) async {
-    await init();
+    if (!await init()) return;
     await _plugin.cancel(_reminderId);
     await _plugin.zonedSchedule(
       _reminderId,
@@ -123,7 +140,7 @@ class NotificationService {
   }
 
   Future<void> cancelReminder() async {
-    await init();
+    if (!await init()) return;
     await _plugin.cancel(_reminderId);
   }
 
@@ -149,8 +166,7 @@ class NotificationService {
     ProgressSnapshot snapshot, {
     required bool dismissWhenComplete,
   }) async {
-    if (!isSupported) return;
-    await init();
+    if (!isSupported || !await init()) return;
 
     if (snapshot.goalComplete && dismissWhenComplete) {
       await cancelProgress();
@@ -219,8 +235,7 @@ class NotificationService {
   }
 
   Future<void> cancelProgress() async {
-    if (!isSupported) return;
-    await init();
+    if (!isSupported || !await init()) return;
     await _plugin.cancel(progressId);
   }
 

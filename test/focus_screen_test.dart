@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
@@ -12,11 +13,52 @@ import 'package:namjap_counter/storage/models/daily_record.dart';
 import 'package:namjap_counter/storage/models/user_settings.dart';
 import 'package:namjap_counter/storage/namjap_repository.dart';
 
+/// Swallows the volume-key stream. Focus mode claims the hardware buttons the
+/// moment it opens, and without a handler here `EventChannel` reports the
+/// missing plugin straight to `FlutterError`, which fails the test before it
+/// has done anything.
+class _SilentVolumeKeys extends MockStreamHandler {
+  @override
+  void onListen(Object? arguments, MockStreamHandlerEventSink events) {}
+
+  @override
+  void onCancel(Object? arguments) {}
+}
+
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late Directory tempDir;
   late Box<DailyRecord> records;
   late Box<UserSettings> settings;
   var boxSuffix = 0;
+
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+
+  setUp(() {
+    messenger.setMockStreamHandler(
+      const EventChannel('namjap/volume_buttons'),
+      _SilentVolumeKeys(),
+    );
+    // Focus mode also asks for Do Not Disturb; answering keeps the log clean.
+    messenger.setMockMethodCallHandler(const MethodChannel('namjap/dnd'), (
+      call,
+    ) async {
+      return switch (call.method) {
+        'hasPermission' || 'isEnabled' || 'setEnabled' => false,
+        _ => null,
+      };
+    });
+  });
+
+  tearDown(() {
+    messenger.setMockStreamHandler(
+      const EventChannel('namjap/volume_buttons'),
+      null,
+    );
+    messenger.setMockMethodCallHandler(const MethodChannel('namjap/dnd'), null);
+  });
 
   setUpAll(() {
     tempDir = Directory.systemTemp.createTempSync('namjap_focus_test');
@@ -33,14 +75,17 @@ void main() {
     settings = await Hive.openBox<UserSettings>('settings_$boxSuffix');
   });
 
-  tearDown(() async {
-    await records.deleteFromDisk();
-    await settings.deleteFromDisk();
-  });
-
+  // The boxes are deliberately left alone between tests. Deleting them here
+  // deadlocks: `deleteFromDisk` waits on Hive's write lock, which is held by a
+  // continuation queued on the widget test's fake-async zone, and that zone
+  // only advances on a `pump` this callback has no way to issue. Fresh box
+  // names per test already give the isolation the deletion was there for.
   tearDownAll(() async {
-    await Hive.close();
-    tempDir.deleteSync(recursive: true);
+    // Best effort. Windows keeps handles on the open boxes, so a failure here
+    // means a stray temp directory, not a broken test run.
+    try {
+      tempDir.deleteSync(recursive: true);
+    } catch (_) {}
   });
 
   Widget wrap(Widget child) {
@@ -56,10 +101,16 @@ void main() {
 
   /// A count is only visible once the Hive write behind it completes, and that
   /// is real I/O — [WidgetTester.pump] alone will never let it finish.
+  ///
+  /// Two pumps, not one. The write's continuation runs on the first, which is
+  /// what finally moves the counter state; the rebuild that state schedules
+  /// only gets drawn on the next frame. With a single pump the screen still
+  /// shows the previous number even though the provider has already moved on.
   Future<void> settleWrites(WidgetTester tester) async {
     await tester.runAsync(
       () => Future<void>.delayed(const Duration(milliseconds: 50)),
     );
+    await tester.pump();
     await tester.pump();
   }
 

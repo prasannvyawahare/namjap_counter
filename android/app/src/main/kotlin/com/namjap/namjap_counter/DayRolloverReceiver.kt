@@ -8,6 +8,7 @@ import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import es.antonborri.home_widget.HomeWidgetBackgroundIntent
+import es.antonborri.home_widget.HomeWidgetPlugin
 
 /**
  * Nudges both out-of-app surfaces onto the new day.
@@ -24,6 +25,17 @@ import es.antonborri.home_widget.HomeWidgetBackgroundIntent
 class DayRolloverReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
+            // The app's Dart callback handles are rebuilt with the app, so the
+            // one the widget's +1 button relies on is now stale. Mark it so the
+            // button opens the app instead of firing into nothing, until Dart
+            // registers again on the next launch.
+            HomeWidgetPlugin.getData(context)
+                .edit()
+                .putBoolean(NamjapWidgetProvider.KEY_CALLBACK_READY, false)
+                .apply()
+        }
+
         redrawWidgets(context)
 
         // Rebuilding the notification needs the repository, which only Dart

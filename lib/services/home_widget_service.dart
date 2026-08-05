@@ -25,6 +25,17 @@ class HomeWidgetService {
   static const String keyPercent = 'namjap_percent';
   static const String keyDark = 'namjap_dark';
 
+  /// Whether the widget's +1 button has a Dart callback to call into.
+  ///
+  /// `home_widget` remembers the callback as a raw Dart handle in shared
+  /// preferences, and those handles do not survive a rebuild of the app — the
+  /// stored one goes on pointing at nothing until [registerInteractivity] runs
+  /// again, which only happens when the app is next opened. A tap in that
+  /// window reaches a background worker that cannot find its entry point and
+  /// gives up without a trace. The widget reads this flag to know whether to
+  /// trust the handle, and falls back to opening the app when it can't.
+  static const String keyCallbackReady = 'namjap_callback_ready';
+
   /// Widgets only exist on Android here; everywhere else this is a no-op so
   /// callers don't have to guard.
   bool get isSupported => !kIsWeb && Platform.isAndroid;
@@ -37,6 +48,9 @@ class HomeWidgetService {
     if (!isSupported) return;
     try {
       await HomeWidget.registerInteractivityCallback(callback);
+      // Only now is the stored handle known to point at this build's code.
+      await HomeWidget.saveWidgetData<bool>(keyCallbackReady, true);
+      await HomeWidget.updateWidget(androidName: androidWidgetName);
     } catch (e) {
       debugPrint('HomeWidgetService: could not register callback: $e');
     }

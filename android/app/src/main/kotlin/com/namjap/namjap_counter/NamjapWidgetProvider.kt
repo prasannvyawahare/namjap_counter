@@ -1,9 +1,11 @@
 package com.namjap.namjap_counter
 
+import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
+import android.util.Log
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.content.ContextCompat
@@ -59,10 +61,14 @@ class NamjapWidgetProvider : HomeWidgetProvider() {
 
             val views = RemoteViews(context.packageName, R.layout.namjap_widget)
             applyProgress(views, count, goal, remaining, percent, streak)
+            // Re-applied on every pass, not just the full one. They are three
+            // cheap actions, and pinning them to the full paint would mean any
+            // disagreement between this map and the host's cache leaves a
+            // widget whose buttons quietly do nothing.
+            applyActions(context, views, widgetData)
 
             if (needsFullPaint) {
                 applyTheme(context, views, dark)
-                applyActions(context, views)
                 appWidgetManager.updateAppWidget(widgetId, views)
                 laidOut[widgetId] = dark
             } else {
@@ -139,12 +145,13 @@ class NamjapWidgetProvider : HomeWidgetProvider() {
         }
     }
 
-    /** Where the taps go. Fixed for the life of the widget. */
-    private fun applyActions(context: Context, views: RemoteViews) = views.run {
-        setOnClickPendingIntent(
-            R.id.widget_increment,
-            HomeWidgetBackgroundIntent.getBroadcast(context, Uri.parse(URI_INCREMENT)),
-        )
+    /** Where the taps go. */
+    private fun applyActions(
+        context: Context,
+        views: RemoteViews,
+        widgetData: SharedPreferences,
+    ) = views.run {
+        setOnClickPendingIntent(R.id.widget_increment, incrementIntent(context, widgetData))
         setOnClickPendingIntent(
             R.id.widget_open,
             HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java),
@@ -155,6 +162,29 @@ class NamjapWidgetProvider : HomeWidgetProvider() {
             HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java),
         )
     }
+
+    /**
+     * Counting from the widget runs Dart in a background worker, and that
+     * worker finds its entry point through a raw Dart callback handle stored on
+     * disk. The handle does not survive a rebuild of the app: until the app has
+     * been opened once and registered afresh, the stored one resolves to
+     * nothing and the worker gives up silently — a button that looks alive and
+     * does nothing.
+     *
+     * So the button is only wired to the background path once Dart has
+     * confirmed the handle belongs to this build. Before that it opens the app,
+     * which registers on the way in and makes the next tap count properly.
+     */
+    private fun incrementIntent(
+        context: Context,
+        widgetData: SharedPreferences,
+    ): PendingIntent =
+        if (widgetData.getBoolean(KEY_CALLBACK_READY, false)) {
+            HomeWidgetBackgroundIntent.getBroadcast(context, Uri.parse(URI_INCREMENT))
+        } else {
+            Log.i(TAG, "No Dart callback registered yet; +1 will open the app instead.")
+            HomeWidgetLaunchIntent.getActivity(context, MainActivity::class.java)
+        }
 
     private fun streakLabel(streak: Int): String = when (streak) {
         0 -> "🔥 No streak yet"
@@ -181,6 +211,9 @@ class NamjapWidgetProvider : HomeWidgetProvider() {
         const val KEY_STREAK = "namjap_streak"
         const val KEY_PERCENT = "namjap_percent"
         const val KEY_DARK = "namjap_dark"
+        const val KEY_CALLBACK_READY = "namjap_callback_ready"
+
+        private const val TAG = "NamjapWidget"
 
         const val URI_INCREMENT = "namjap://increment"
         const val URI_REFRESH = "namjap://refresh"

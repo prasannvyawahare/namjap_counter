@@ -8,6 +8,11 @@ class AppConstants {
   /// Default daily target expressed in counts (1 Mala).
   static const int defaultDailyGoalCount = 108;
 
+  /// How long the dashboard may sit without a count before the screen wakelock
+  /// is released. Long enough that a slow, contemplative pace never trips it;
+  /// short enough that a dashboard left open by accident stops burning battery.
+  static const Duration wakelockIdleTimeout = Duration(minutes: 3);
+
   // Hive box names.
   static const String settingsBoxName = 'settings_box';
   static const String recordsBoxName = 'records_box';

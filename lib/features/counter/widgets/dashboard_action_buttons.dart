@@ -105,8 +105,11 @@ class _RoundButtonState extends State<_RoundButton> {
               ),
             ],
           ),
-          child: Icon(widget.icon,
-              color: Colors.white, size: widget.large ? 36 : 30),
+          child: Icon(
+            widget.icon,
+            color: Colors.white,
+            size: widget.large ? 36 : 30,
+          ),
         ),
       ),
     );

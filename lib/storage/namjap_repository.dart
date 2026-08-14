@@ -12,8 +12,8 @@ class NamjapRepository {
   NamjapRepository({
     required Box<DailyRecord> recordsBox,
     required Box<UserSettings> settingsBox,
-  })  : _records = recordsBox,
-        _settings = settingsBox;
+  }) : _records = recordsBox,
+       _settings = settingsBox;
 
   final Box<DailyRecord> _records;
   final Box<UserSettings> _settings;
@@ -72,8 +72,32 @@ class NamjapRepository {
   }
 
   /// Lifetime total across every recorded day.
-  int totalCount() =>
-      _records.values.fold<int>(0, (sum, r) => sum + r.count);
+  int totalCount() => _records.values.fold<int>(0, (sum, r) => sum + r.count);
+
+  /// Number of consecutive days, ending at [asOf], on which anything was
+  /// chanted.
+  ///
+  /// A day with no counts yet doesn't break the streak while it is still in
+  /// progress — otherwise every streak would read as zero each morning until
+  /// the first bead. So when [asOf] itself is empty the walk starts at the
+  /// previous day instead.
+  int currentStreak({DateTime? asOf}) {
+    final today = asOf ?? DateTime.now();
+    var cursor = DateTime(today.year, today.month, today.day);
+    if (countFor(cursor) <= 0) {
+      // Rebuilt rather than shifted by 24h so a DST boundary can't land the
+      // cursor back on the day it just left.
+      cursor = DateTime(cursor.year, cursor.month, cursor.day - 1);
+    }
+    var streak = 0;
+    while (countFor(cursor) > 0) {
+      streak++;
+      // Rebuilt rather than shifted by 24h so a DST boundary can't land the
+      // cursor back on the day it just left.
+      cursor = DateTime(cursor.year, cursor.month, cursor.day - 1);
+    }
+    return streak;
+  }
 
   int countInRange(bool Function(DateTime date) test) {
     var total = 0;

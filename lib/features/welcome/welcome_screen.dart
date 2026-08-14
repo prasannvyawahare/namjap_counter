@@ -56,28 +56,34 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                       gradient: kSaffronGradient,
                       shape: BoxShape.circle,
                     ),
-                    child: const Icon(Icons.self_improvement,
-                        size: 52, color: Colors.white),
+                    child: const Icon(
+                      Icons.self_improvement,
+                      size: 52,
+                      color: Colors.white,
+                    ),
                   ),
                   Text(
                     'Namjap Counter',
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.headlineMedium
-                        ?.copyWith(fontWeight: FontWeight.bold),
+                    style: theme.textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Track your spiritual journey',
                     textAlign: TextAlign.center,
                     style: theme.textTheme.bodyLarge?.copyWith(
-                      color:
-                          theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                   const SizedBox(height: 40),
-                  Text('Enter Your Name',
-                      style: theme.textTheme.titleMedium
-                          ?.copyWith(fontWeight: FontWeight.bold)),
+                  Text(
+                    'Enter Your Name',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   TextFormField(
                     controller: _controller,
@@ -110,8 +116,11 @@ class _WelcomeScreenState extends ConsumerState<WelcomeScreen> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.info_outline,
-                            size: 20, color: theme.colorScheme.primary),
+                        Icon(
+                          Icons.info_outline,
+                          size: 20,
+                          color: theme.colorScheme.primary,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(

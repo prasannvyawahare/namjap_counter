@@ -4,11 +4,7 @@ import '../core/theme/app_theme.dart';
 
 /// An animated saffron progress bar used for the daily goal.
 class MalaProgressBar extends StatelessWidget {
-  const MalaProgressBar({
-    super.key,
-    required this.value,
-    this.height = 10,
-  });
+  const MalaProgressBar({super.key, required this.value, this.height = 10});
 
   /// Progress in the range 0..1.
   final double value;
@@ -24,10 +20,9 @@ class MalaProgressBar extends StatelessWidget {
             Container(
               height: height,
               decoration: BoxDecoration(
-                color: Theme.of(context)
-                    .colorScheme
-                    .onSurface
-                    .withValues(alpha: 0.12),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(height),
               ),
             ),

@@ -24,6 +24,9 @@ dependencies:
   vibration: ^2.0.0
   flutter_volume_controller: ^1.3.3
 
+  # Keep the screen on while counting
+  wakelock_plus: ^1.2.10
+
   # Sharing
   share_plus: ^10.1.4
 
@@ -37,6 +40,7 @@ dependencies:
 
   # Nice-to-have
   confetti: ^0.8.0
+  home_widget: ^0.9.3
 
 dev_dependencies:
   flutter_test:

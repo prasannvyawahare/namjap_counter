@@ -15,6 +15,14 @@ import 'package:flutter_volume_controller/flutter_volume_controller.dart';
 /// On other platforms we fall back to observing the media volume: park it at a
 /// mid "anchor" value with the system UI hidden, translate any nudge into a
 /// count, then snap back to the anchor so there is headroom in both directions.
+///
+/// The keys are *owned*, in the same spirit as [WakelockService]'s reference
+/// counting, because more than one screen wants them: the dashboard holds them
+/// while it is on top, and Focus mode takes over for the length of a session.
+/// Claiming is last-one-wins, and — this is the part that matters — a screen can
+/// only release what it still holds. Without that, a screen tearing down after
+/// something else has claimed the keys would yank them away from whoever is
+/// actually on top, and the buttons would go dead with no visible cause.
 class VolumeButtonService {
   VolumeButtonService();
 
@@ -27,19 +35,28 @@ class VolumeButtonService {
   bool _restoring = false;
   bool _active = false;
 
+  Object? _owner;
   VoidCallback? _onUp;
   VoidCallback? _onDown;
 
   bool get isActive => _active;
 
+  /// Whether [owner] is the screen the keys currently report to.
+  bool isOwnedBy(Object owner) => identical(_owner, owner);
+
   bool get _useNative =>
       defaultTargetPlatform == TargetPlatform.android ||
       defaultTargetPlatform == TargetPlatform.iOS;
 
+  /// Points the volume keys at [owner]'s handlers, taking over from whoever
+  /// held them before. Safe to call when already the owner — it just refreshes
+  /// the callbacks.
   Future<void> start({
+    required Object owner,
     required VoidCallback onUp,
     required VoidCallback onDown,
   }) async {
+    _owner = owner;
     _onUp = onUp;
     _onDown = onDown;
     if (_active) return;
@@ -109,7 +126,16 @@ class VolumeButtonService {
     }
   }
 
-  Future<void> stop() async {
+  /// Releases the keys on behalf of [owner].
+  ///
+  /// A mismatched owner is ignored rather than honoured: screens tear down in
+  /// an order nobody controls, and a departing screen must not be able to
+  /// silence the keys for the screen that has already replaced it.
+  Future<void> stop({Object? owner}) async {
+    if (owner != null && !identical(_owner, owner)) return;
+    _owner = null;
+    _onUp = null;
+    _onDown = null;
     _active = false;
     await _subscription?.cancel();
     _subscription = null;

@@ -34,8 +34,14 @@ class StatisticsSnapshot {
   final StatEntry thisYear;
   final StatEntry lifetime;
 
-  List<StatEntry> get all =>
-      [today, yesterday, thisWeek, thisMonth, thisYear, lifetime];
+  List<StatEntry> get all => [
+    today,
+    yesterday,
+    thisWeek,
+    thisMonth,
+    thisYear,
+    lifetime,
+  ];
 }
 
 /// Aggregated statistics. Recomputed whenever the counter state changes.
@@ -121,26 +127,29 @@ final historyProvider = Provider<HistorySnapshot>((ref) {
     if (dt == null) continue;
 
     final weekStart = DateHelpers.startOfWeek(dt);
-    weekly.putIfAbsent(
-      DateHelpers.key(weekStart),
-      () => _Bucket(
-        'Week of ${DateHelpers.shortLabel(weekStart)}',
-        DateHelpers.key(weekStart),
-      ),
-    ).add(r.count);
+    weekly
+        .putIfAbsent(
+          DateHelpers.key(weekStart),
+          () => _Bucket(
+            'Week of ${DateHelpers.shortLabel(weekStart)}',
+            DateHelpers.key(weekStart),
+          ),
+        )
+        .add(r.count);
 
-    monthly.putIfAbsent(
-      '${dt.year}-${dt.month.toString().padLeft(2, '0')}',
-      () => _Bucket(
-        DateHelpers.monthLabel(dt),
-        '${dt.year}-${dt.month.toString().padLeft(2, '0')}',
-      ),
-    ).add(r.count);
+    monthly
+        .putIfAbsent(
+          '${dt.year}-${dt.month.toString().padLeft(2, '0')}',
+          () => _Bucket(
+            DateHelpers.monthLabel(dt),
+            '${dt.year}-${dt.month.toString().padLeft(2, '0')}',
+          ),
+        )
+        .add(r.count);
 
-    yearly.putIfAbsent(
-      '${dt.year}',
-      () => _Bucket('${dt.year}', '${dt.year}'),
-    ).add(r.count);
+    yearly
+        .putIfAbsent('${dt.year}', () => _Bucket('${dt.year}', '${dt.year}'))
+        .add(r.count);
   }
 
   final total = repo.totalCount();
@@ -157,11 +166,15 @@ final historyProvider = Provider<HistorySnapshot>((ref) {
 });
 
 List<PeriodSummary> _sortedSummaries(Map<String, _Bucket> map) {
-  final entries = map.entries.toList()
-    ..sort((a, b) => b.key.compareTo(a.key));
+  final entries = map.entries.toList()..sort((a, b) => b.key.compareTo(a.key));
   return entries
-      .map((e) =>
-          PeriodSummary(label: e.value.label, count: e.value.count, days: e.value.days))
+      .map(
+        (e) => PeriodSummary(
+          label: e.value.label,
+          count: e.value.count,
+          days: e.value.days,
+        ),
+      )
       .toList();
 }
 

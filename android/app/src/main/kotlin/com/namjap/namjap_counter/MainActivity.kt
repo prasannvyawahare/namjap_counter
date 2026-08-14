@@ -32,6 +32,7 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "hasPermission" -> result.success(hasPolicyAccess())
+                    "isEnabled" -> result.success(isDndActive())
                     "openPolicySettings" -> {
                         startActivity(
                             Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
@@ -53,6 +54,13 @@ class MainActivity : FlutterActivity() {
 
     private fun hasPolicyAccess(): Boolean =
         notificationManager().isNotificationPolicyAccessGranted
+
+    /// Whether the system is silencing interruptions right now, no matter who
+    /// asked for it. Lets Dart show the real state rather than what the app
+    /// last intended, and lets it leave a user's own Do Not Disturb alone.
+    private fun isDndActive(): Boolean =
+        notificationManager().currentInterruptionFilter !=
+            NotificationManager.INTERRUPTION_FILTER_ALL
 
     /// Applies the interruption filter. Uses ALARMS (silence calls and
     /// notifications but still let alarms through) rather than NONE so a session

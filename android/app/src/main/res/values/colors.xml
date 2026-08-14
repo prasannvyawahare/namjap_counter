@@ -2,4 +2,22 @@
 <resources>
     <!-- Matches AppTheme.lightBackground -->
     <color name="launch_background">#FDF7F0</color>
+
+    <!-- Home screen widget palette, mirroring AppTheme so the widget reads as
+         part of the app rather than a saffron tile parked next to it. The
+         widget follows the app's own dark-mode preference, not the system's,
+         which is why both sets live here and are chosen at runtime. -->
+    <color name="widget_dark_background">#141B2D</color>
+    <color name="widget_dark_card">#232D4A</color>
+    <color name="widget_dark_on_surface">#FFFFFF</color>
+    <color name="widget_dark_on_surface_muted">#99FFFFFF</color>
+
+    <color name="widget_light_background">#FDF7F0</color>
+    <color name="widget_light_surface">#FFFFFF</color>
+    <color name="widget_light_on_surface">#20242E</color>
+    <color name="widget_light_on_surface_muted">#9920242E</color>
+
+    <!-- AppTheme.saffron is the dark scheme's primary, deepOrange the light one's. -->
+    <color name="widget_saffron">#FF9800</color>
+    <color name="widget_deep_orange">#FF5722</color>
 </resources>

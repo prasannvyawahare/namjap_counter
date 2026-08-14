@@ -24,10 +24,7 @@ class ShareService {
         'Keep Chanting 🙏';
   }
 
-  String weeklyMessage({
-    required String name,
-    required int totalCount,
-  }) {
+  String weeklyMessage({required String name, required int totalCount}) {
     final b = MalaCalculator.breakdown(totalCount);
     return '🙏 Weekly Namjap Summary 🙏\n\n'
         'Name : ${_name(name)}\n\n'
@@ -37,10 +34,7 @@ class ShareService {
         'Hari Om 🙏';
   }
 
-  String monthlyMessage({
-    required String monthName,
-    required int totalCount,
-  }) {
+  String monthlyMessage({required String monthName, required int totalCount}) {
     final b = MalaCalculator.breakdown(totalCount);
     return '🙏 Monthly Namjap Summary 🙏\n\n'
         'Month : $monthName\n\n'

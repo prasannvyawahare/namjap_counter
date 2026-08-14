@@ -18,11 +18,7 @@ class AppTheme {
     final scheme = ColorScheme.fromSeed(
       seedColor: saffron,
       brightness: Brightness.dark,
-    ).copyWith(
-      primary: saffron,
-      secondary: deepOrange,
-      surface: darkSurface,
-    );
+    ).copyWith(primary: saffron, secondary: deepOrange, surface: darkSurface);
     return _base(scheme, darkBackground, darkCard);
   }
 
@@ -30,11 +26,7 @@ class AppTheme {
     final scheme = ColorScheme.fromSeed(
       seedColor: saffron,
       brightness: Brightness.light,
-    ).copyWith(
-      primary: deepOrange,
-      secondary: saffron,
-      surface: lightSurface,
-    );
+    ).copyWith(primary: deepOrange, secondary: saffron, surface: lightSurface);
     return _base(scheme, lightBackground, lightSurface);
   }
 
@@ -58,19 +50,14 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: card,
         elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
           backgroundColor: scheme.primary,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
-          textStyle: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.bold,
-          ),
+          textStyle: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -79,8 +66,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: card,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 18,
+          vertical: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: scheme.primary.withValues(alpha: 0.4)),
@@ -97,10 +86,10 @@ class AppTheme {
       snackBarTheme: SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
         backgroundColor: card,
-        contentTextStyle:
-            TextStyle(color: isDark ? Colors.white : Colors.black87),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        contentTextStyle: TextStyle(
+          color: isDark ? Colors.white : Colors.black87,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }

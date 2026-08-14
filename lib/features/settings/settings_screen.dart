@@ -17,13 +17,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final TextEditingController _nameController;
   late final TextEditingController _goalController;
 
+  /// Whether the phone is actually silenced right now, as opposed to whether
+  /// the preference says it should be. The two can only drift if something is
+  /// wrong, which is exactly when it's worth being able to see both.
+  bool _dndActive = false;
+
   @override
   void initState() {
     super.initState();
     final settings = ref.read(settingsProvider);
     _nameController = TextEditingController(text: settings.name);
-    _goalController =
-        TextEditingController(text: settings.dailyGoalCount.toString());
+    _goalController = TextEditingController(
+      text: settings.dailyGoalCount.toString(),
+    );
+    _refreshDndState();
+  }
+
+  Future<void> _refreshDndState() async {
+    final dnd = ref.read(dndServiceProvider);
+    // The dashboard applies the preference asynchronously; reading the filter
+    // before that lands would just show the old value back.
+    await dnd.settled;
+    final active = await dnd.isEnabled();
+    if (mounted && active != _dndActive) setState(() => _dndActive = active);
   }
 
   @override
@@ -35,14 +51,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<void> _save() async {
     final controller = ref.read(settingsProvider.notifier);
-    final goal = int.tryParse(_goalController.text.trim()) ??
+    final goal =
+        int.tryParse(_goalController.text.trim()) ??
         AppConstants.defaultDailyGoalCount;
     await controller.updateName(_nameController.text);
     await controller.updateGoalCount(goal);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Settings saved')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Settings saved')));
     Navigator.of(context).maybePop();
   }
 
@@ -77,9 +94,36 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
 
     // Persist intent regardless — once access is granted it applies while the
-    // app is in the foreground.
+    // app is in the foreground. The dashboard is listening to this preference
+    // and holds or drops the silence accordingly; setting the filter from here
+    // too would mean two places deciding, and the loser leaves the phone in a
+    // state the switch doesn't admit to.
     await controller.setDndWhileCounting(value);
-    await dnd.setEnabled(value);
+    await _refreshDndState();
+  }
+
+  Future<void> _onProgressNotificationChanged(bool value) async {
+    final controller = ref.read(settingsProvider.notifier);
+    if (!value) {
+      // main() listens for this and clears the notification.
+      await controller.setProgressNotificationEnabled(false);
+      return;
+    }
+
+    final granted = await ref
+        .read(notificationServiceProvider)
+        .requestPermission();
+    await controller.setProgressNotificationEnabled(true);
+    if (!granted && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Enable notifications for Namjap in system settings to see your '
+            'progress in the shade.',
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _onReminderChanged(bool value) async {
@@ -173,24 +217,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           Wrap(
             spacing: 8,
             children: [1, 3, 5, 10, 16]
-                .map((m) => ActionChip(
-                      label: Text('$m Mala'),
-                      onPressed: () => setState(() => _goalController.text =
-                          (m * AppConstants.countsPerMala).toString()),
-                    ))
+                .map(
+                  (m) => ActionChip(
+                    label: Text('$m Mala'),
+                    onPressed: () => setState(
+                      () => _goalController.text =
+                          (m * AppConstants.countsPerMala).toString(),
+                    ),
+                  ),
+                )
                 .toList(),
           ),
           const SizedBox(height: 28),
           _sectionTitle(theme, 'Feedback'),
-          const SizedBox(height: 12),
-          _ToggleCard(
-            icon: Icons.music_note,
-            iconColor: theme.colorScheme.primary,
-            title: 'Sound',
-            subtitle: 'Play sound on count',
-            value: settings.soundEnabled,
-            onChanged: ref.read(settingsProvider.notifier).setSound,
-          ),
+          // const SizedBox(height: 12),
+          // _ToggleCard(
+          //   icon: Icons.music_note,
+          //   iconColor: theme.colorScheme.primary,
+          //   title: 'Sound',
+          //   subtitle: 'Play sound on count',
+          //   value: settings.soundEnabled,
+          //   onChanged: ref.read(settingsProvider.notifier).setSound,
+          // ),
           const SizedBox(height: 12),
           _ToggleCard(
             icon: Icons.vibration,
@@ -220,6 +268,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             value: settings.autoReset,
             onChanged: ref.read(settingsProvider.notifier).setAutoReset,
           ),
+          const SizedBox(height: 12),
+          _ToggleCard(
+            icon: Icons.screen_lock_portrait,
+            iconColor: Colors.lightBlue,
+            title: 'Keep Screen Awake',
+            subtitle:
+                'Stay unlocked while counting · releases after '
+                '${AppConstants.wakelockIdleTimeout.inMinutes} min idle',
+            value: settings.keepScreenAwake,
+            onChanged: ref.read(settingsProvider.notifier).setKeepScreenAwake,
+          ),
           const SizedBox(height: 28),
           _sectionTitle(theme, 'Do Not Disturb'),
           const SizedBox(height: 12),
@@ -227,14 +286,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             icon: Icons.do_not_disturb_on,
             iconColor: Colors.redAccent,
             title: 'Silence while chanting',
-            subtitle: ref.read(dndServiceProvider).isSupported
-                ? 'Mute calls & notifications while the app is open'
-                : 'Not available on this device',
+            subtitle: !ref.read(dndServiceProvider).isSupported
+                ? 'Not available on this device'
+                : _dndActive
+                ? 'Phone is silenced right now'
+                : 'Mute calls & notifications while the app is open',
             value: settings.dndWhileCounting,
             onChanged: ref.read(dndServiceProvider).isSupported
                 ? _onDndChanged
                 : null,
           ),
+          const SizedBox(height: 28),
+          _sectionTitle(theme, 'Progress Notification'),
+          const SizedBox(height: 12),
+          _ToggleCard(
+            icon: Icons.push_pin,
+            iconColor: theme.colorScheme.primary,
+            title: 'Show in notification shade',
+            subtitle: "Live count with +1 and -1 buttons, all day",
+            value: settings.progressNotificationEnabled,
+            onChanged: _onProgressNotificationChanged,
+          ),
+          if (settings.progressNotificationEnabled) ...[
+            const SizedBox(height: 12),
+            _ToggleCard(
+              icon: Icons.celebration,
+              iconColor: Colors.pinkAccent,
+              title: 'Clear on goal completion',
+              subtitle: settings.dismissNotificationOnGoalComplete
+                  ? 'Removed the moment you finish'
+                  : 'Stays with a Hari Om 🙏 message',
+              value: settings.dismissNotificationOnGoalComplete,
+              onChanged: ref
+                  .read(settingsProvider.notifier)
+                  .setDismissNotificationOnGoalComplete,
+            ),
+          ],
           const SizedBox(height: 28),
           _sectionTitle(theme, 'Reminders'),
           const SizedBox(height: 12),
@@ -250,8 +337,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 12),
             AppCard(
               onTap: _pickReminderTime,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 children: [
                   Icon(Icons.schedule, color: theme.colorScheme.primary),
@@ -273,8 +359,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  Icon(Icons.chevron_right,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4)),
+                  Icon(
+                    Icons.chevron_right,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
                 ],
               ),
             ),
@@ -288,8 +376,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             child: Row(
               children: [
-                Icon(Icons.info_outline,
-                    size: 20, color: theme.colorScheme.primary),
+                Icon(
+                  Icons.info_outline,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -310,10 +401,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Widget _sectionTitle(ThemeData theme, String text) => Text(
-        text,
-        style:
-            theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
-      );
+    text,
+    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+  );
 }
 
 class _ToggleCard extends StatelessWidget {
@@ -349,13 +439,16 @@ class _ToggleCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text(subtitle,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color:
-                          theme.colorScheme.onSurface.withValues(alpha: 0.6),
-                    )),
+                Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  subtitle,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
               ],
             ),
           ),
